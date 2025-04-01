@@ -5,7 +5,7 @@ import { User } from '../entities/user.entity'
 import { type CreateUserDto } from '../dto/create-user.dto'
 import { type VaultService } from './vault.service'
 import { Wallet } from 'ethers'
-import * as bcrypt from 'bcrypt'
+import * as argon2 from 'argon2'
 
 /**
  * UsersService содержит логику по регистрации пользователя, генерации Ethereum кошелька,
@@ -23,7 +23,7 @@ export class UsersService {
 
   /**
    * Регистрирует нового пользователя:
-   * 1. Хеширует пароль с помощью bcrypt.
+   * 1. Хеширует пароль с помощью argon2.
    * 2. Генерирует новый Ethereum-кошелёк.
    * 3. Сохраняет приватный ключ в Vault.
    * 4. Сохраняет пользователя с email, хешированным паролем и публичным ключом в PostgreSQL.
@@ -36,16 +36,15 @@ export class UsersService {
   ): Promise<{ id: string; email: string; publicKey: string }> {
     const { email, password } = createUserDto
 
-    // Хеширование пароля с использованием bcrypt для безопасного хранения
-    const saltRounds = 10
-    const hashedPassword = await bcrypt.hash(password, saltRounds)
+    // Хеширование пароля с использованием argon2 для безопасного хранения
+    const hashedPassword = await argon2.hash(password)
 
-    // Генерация нового Ethereum-кошелька с использованием библиотеки ethers
+    // Генерация нового Ethereum-кошелька
     const wallet = Wallet.createRandom()
     const privateKey = wallet.privateKey
     const publicKey = wallet.address
 
-    // Сохранение приватного ключа в Vault по пути, зависящему от email
+    // Сохранение приватного ключа в Vault
     const vaultPath = `secret/ethereum/${email}`
     await this.vaultService.storeSecret(vaultPath, { privateKey })
 
@@ -81,7 +80,7 @@ export class UsersService {
    */
   async validateUser(email: string, password: string): Promise<User | undefined> {
     const user = await this.findByEmail(email)
-    if (user && (await bcrypt.compare(password, user.password))) {
+    if (user && (await argon2.verify(user.password, password))) {
       return user
     }
     return undefined
