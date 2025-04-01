@@ -66,9 +66,9 @@ export class UsersService {
   /**
    * Находит пользователя по email.
    * @param email - Email пользователя.
-   * @returns Объект пользователя или undefined, если не найден.
+   * @returns Объект пользователя или null, если не найден.
    */
-  async findByEmail(email: string): Promise<User | undefined> {
+  async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } })
   }
 
@@ -77,13 +77,13 @@ export class UsersService {
    * Сравнивает предоставленный пароль с хешированным в базе данных.
    * @param email - Email пользователя.
    * @param password - Пароль для проверки.
-   * @returns Объект пользователя, если проверка пройдена, или null в противном случае.
+   * @returns Объект пользователя, если проверка пройдена, или undefined в противном случае.
    */
-  async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(email: string, password: string): Promise<User | undefined> {
     const user = await this.findByEmail(email)
     if (user && (await bcrypt.compare(password, user.password))) {
       return user
     }
-    return null
+    return undefined
   }
 }

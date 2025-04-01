@@ -14,9 +14,9 @@ export class AuthService {
    * Валидирует пользователя по email и паролю.
    * @param email - Email пользователя.
    * @param password - Пароль пользователя.
-   * @returns Объект пользователя, если учетные данные корректны, или null.
+   * @returns Объект пользователя, если учетные данные корректны, или undefined.
    */
-  async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(email: string, password: string): Promise<User | undefined> {
     return this.usersService.validateUser(email, password)
   }
 }
