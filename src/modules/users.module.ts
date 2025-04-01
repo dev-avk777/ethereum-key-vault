@@ -18,6 +18,7 @@ import { PassportModule } from '@nestjs/passport'
 @Module({
   imports: [TypeOrmModule.forFeature([User]), PassportModule],
   controllers: [UsersController],
-  providers: [UsersService, VaultService, AuthService, LocalStrategy],
+  providers: [VaultService, UsersService, AuthService, LocalStrategy],
+  exports: [UsersService, AuthService],
 })
 export class UsersModule {}

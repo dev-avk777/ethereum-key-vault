@@ -16,9 +16,9 @@ export class UsersService {
   private readonly logger = new Logger(UsersService.name)
 
   constructor(
-    private readonly vaultService: VaultService,
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>
+    private readonly userRepository: Repository<User>,
+    private readonly vaultService: VaultService
   ) {}
 
   /**

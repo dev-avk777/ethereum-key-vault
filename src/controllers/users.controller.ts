@@ -1,17 +1,21 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common'
+import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common'
 import { type UsersService } from '../services/users.service'
 import { type CreateUserDto } from '../dto/create-user.dto'
-import { AuthGuard } from '@nestjs/passport'
+import { type LoginUserDto } from '../dto/login-user.dto'
+import { type AuthService } from '../services/auth.service'
 
 /**
  * UsersController обрабатывает HTTP-запросы, связанные с пользователями.
  * Здесь реализованы два эндпоинта:
  * - POST /users/register для регистрации нового пользователя.
- * - POST /users/login для аутентификации (логина) с использованием локальной стратегии Passport.
+ * - POST /users/login для аутентификации пользователя.
  */
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly authService: AuthService
+  ) {}
 
   /**
    * Эндпоинт для регистрации пользователя.
@@ -24,13 +28,15 @@ export class UsersController {
 
   /**
    * Эндпоинт для логина пользователя.
-   * Использует AuthGuard с локальной стратегией, который проводит валидацию учетных данных.
-   * Если аутентификация проходит успешно, возвращается сообщение с информацией о пользователе.
+   * Проверяет учетные данные и возвращает информацию о пользователе.
+   * Если аутентификация не удалась, выбрасывает UnauthorizedException.
    */
-  @UseGuards(AuthGuard('local'))
   @Post('login')
-  async login(@Request() req) {
-    // На этом этапе пользователь аутентифицирован, и данные пользователя доступны через req.user
-    return { message: 'Login successful', user: req.user }
+  async login(@Body() loginDto: LoginUserDto) {
+    const user = await this.authService.validateUser(loginDto.email, loginDto.password)
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials')
+    }
+    return user
   }
 }
