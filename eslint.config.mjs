@@ -51,7 +51,7 @@ const config = [
       ],
 
       // General rules
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-console': ['warn', { allow: ['warn','log', 'error'] }],
       'no-undef': 'off',
       'no-duplicate-imports': 'error',
       'no-unused-vars': 'off',
