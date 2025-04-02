@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { type UsersService } from './users.service'
-import { type User } from '../entities/user.entity'
+import { UsersService } from './users.service'
+import { User } from '../entities/user.entity'
 import * as argon2 from 'argon2'
 
 /**

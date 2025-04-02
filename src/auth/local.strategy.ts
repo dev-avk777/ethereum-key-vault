@@ -1,8 +1,8 @@
 import { Strategy } from 'passport-local'
 import { PassportStrategy } from '@nestjs/passport'
 import { Injectable, UnauthorizedException } from '@nestjs/common'
-import { type AuthService } from '../services/auth.service'
-import { type User } from '../entities/user.entity'
+import { AuthService } from '../services/auth.service'
+import { User } from '../entities/user.entity'
 
 /**
  * LocalStrategy реализует локальную стратегию аутентификации с использованием Passport.

@@ -1,8 +1,8 @@
 import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common'
-import { type UsersService } from '../services/users.service'
-import { type CreateUserDto } from '../dto/create-user.dto'
-import { type LoginUserDto } from '../dto/login-user.dto'
-import { type AuthService } from '../services/auth.service'
+import { UsersService } from '../services/users.service'
+import { CreateUserDto } from '../dto/create-user.dto'
+import { LoginUserDto } from '../dto/login-user.dto'
+import { AuthService } from '../services/auth.service'
 
 /**
  * UsersController обрабатывает HTTP-запросы, связанные с пользователями.

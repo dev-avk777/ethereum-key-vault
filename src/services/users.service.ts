@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { type Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 import { User } from '../entities/user.entity'
-import { type CreateUserDto } from '../dto/create-user.dto'
-import { type VaultService } from './vault.service'
+import { CreateUserDto } from '../dto/create-user.dto'
+import { VaultService } from './vault.service'
 import { Wallet } from 'ethers'
 import * as argon2 from 'argon2'
 

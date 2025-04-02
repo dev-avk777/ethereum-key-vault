@@ -1,4 +1,4 @@
-import { type TypeOrmModuleOptions } from '@nestjs/typeorm'
+import { TypeOrmModuleOptions } from '@nestjs/typeorm'
 import { User } from '../entities/user.entity'
 
 /**

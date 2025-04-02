@@ -1,4 +1,4 @@
-import { type VaultOptions } from 'node-vault'
+import { VaultOptions } from 'node-vault'
 
 /**
  * Конфигурация для подключения к HashiCorp Vault.

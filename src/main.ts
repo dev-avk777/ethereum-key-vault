@@ -6,8 +6,14 @@ import { ValidationPipe } from '@nestjs/common'
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
 
-  // Включаем CORS
-  app.enableCors()
+  // Настраиваем CORS для разрешения запросов от Swagger UI
+  app.enableCors({
+    origin: true, // разрешаем запросы с любого источника
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  })
 
   // Включаем валидацию
   app.useGlobalPipes(new ValidationPipe())

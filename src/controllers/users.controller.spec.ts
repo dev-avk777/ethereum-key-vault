@@ -2,8 +2,8 @@ import { Test, type TestingModule } from '@nestjs/testing'
 import { UsersController } from './users.controller'
 import { UsersService } from '../services/users.service'
 import { AuthService } from '../services/auth.service'
-import { type CreateUserDto } from '../dto/create-user.dto'
-import { type LoginUserDto } from '../dto/login-user.dto'
+import { CreateUserDto } from '../dto/create-user.dto'
+import { LoginUserDto } from '../dto/login-user.dto'
 import { UnauthorizedException } from '@nestjs/common'
 
 describe('UsersController', () => {

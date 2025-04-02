@@ -3,7 +3,7 @@ import { UsersService } from './users.service'
 import { VaultService } from './vault.service'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { User } from '../entities/user.entity'
-import { type Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 import * as argon2 from 'argon2'
 import { Wallet } from 'ethers'
 
