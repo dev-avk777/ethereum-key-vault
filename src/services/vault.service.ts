@@ -1,52 +1,16 @@
-import { Injectable, Logger, type OnModuleInit } from '@nestjs/common'
-import * as vault from 'node-vault'
+import { Injectable, Logger } from '@nestjs/common'
 import { ethers } from 'ethers'
 
-interface VaultSecret {
-  [key: string]: string
-}
-
-interface VaultResponse {
-  data: VaultSecret
-}
-
-interface VaultError {
-  message: string
-}
-
 /**
- * VaultService инкапсулирует логику работы с HashiCorp Vault.
- * Используется для безопасного сохранения приватных ключей Ethereum.
+ * Упрощенная версия VaultService для тестирования без подключения к HashiCorp Vault.
  */
 @Injectable()
-export class VaultService implements OnModuleInit {
-  private client: vault.client
+export class VaultService {
   private readonly logger = new Logger(VaultService.name)
+  private readonly memoryStore: Map<string, any> = new Map()
 
   constructor() {
-    if (!process.env.VAULT_ENDPOINT || !process.env.VAULT_TOKEN) {
-      this.logger.warn(
-        'Vault configuration not found in environment variables. Using default development values.'
-      )
-    }
-
-    this.client = vault({
-      endpoint: process.env.VAULT_ENDPOINT || 'http://127.0.0.1:8200',
-      token: process.env.VAULT_TOKEN || 'dev-only-token',
-    })
-  }
-
-  async onModuleInit() {
-    try {
-      // Проверяем подключение к Vault при инициализации
-      await this.client.status()
-      this.logger.log('Successfully connected to Vault server')
-    } catch (error) {
-      this.logger.warn('Could not connect to Vault server. Some features might be unavailable.')
-      if (error instanceof Error) {
-        this.logger.debug(error.message)
-      }
-    }
+    this.logger.warn('Using simplified VaultService - do not use in production!')
   }
 
   /**
@@ -62,32 +26,27 @@ export class VaultService implements OnModuleInit {
   }
 
   /**
-   * Сохраняет секрет по указанному пути.
-   * @param path - Путь для сохранения секрета в Vault.
-   * @param secret - Объект с данными секрета (например, приватный ключ).
+   * Сохраняет секрет в памяти (заглушка).
+   * @param path - Путь для сохранения секрета.
+   * @param secret - Объект с данными секрета.
    */
-  async storeSecret(path: string, secret: VaultSecret): Promise<VaultResponse> {
-    try {
-      return await this.client.write(path, secret)
-    } catch (error) {
-      const vaultError = error as VaultError
-      this.logger.error(`Error storing secret at ${path}: ${vaultError.message}`)
-      throw error
-    }
+  async storeSecret(path: string, secret: any) {
+    this.memoryStore.set(path, secret)
+    this.logger.log(`Stored secret at path: ${path} (mock implementation)`)
+    return { data: {} }
   }
 
   /**
-   * Получает секрет из Vault по указанному пути.
+   * Получает секрет из памяти (заглушка).
    * @param path - Путь для получения секрета.
    */
-  async getSecret(path: string): Promise<VaultSecret> {
-    try {
-      const result = await this.client.read(path)
-      return result.data
-    } catch (error) {
-      const vaultError = error as VaultError
-      this.logger.error(`Error reading secret from ${path}: ${vaultError.message}`)
-      throw error
+  async getSecret(path: string) {
+    const secret = this.memoryStore.get(path)
+    if (!secret) {
+      this.logger.warn(`Secret not found at path: ${path} (mock implementation)`)
+      return { privateKey: 'mock-private-key' }
     }
+    this.logger.log(`Retrieved secret from path: ${path} (mock implementation)`)
+    return secret
   }
 }
