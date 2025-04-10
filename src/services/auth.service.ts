@@ -19,7 +19,7 @@ export class AuthService {
    */
   async validateUser(email: string, password: string): Promise<User | undefined> {
     const user = await this.usersService.findByEmail(email)
-    if (!user) {
+    if (!user || user.password === null) {
       return undefined
     }
 

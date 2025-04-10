@@ -17,6 +17,8 @@ describe('UsersController', () => {
     password: 'hashedPassword',
     publicKey: '0x123',
     createdAt: new Date(),
+    googleId: null,
+    displayName: null,
   }
 
   beforeEach(async () => {

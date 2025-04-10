@@ -6,6 +6,7 @@ import { User } from '../entities/user.entity'
 import { Repository } from 'typeorm'
 import * as argon2 from 'argon2'
 import { Wallet } from 'ethers'
+import { CreateUserDto } from '../dto/create-user.dto'
 
 // Мокаем внешние зависимости
 jest.mock('argon2', () => ({
@@ -33,6 +34,8 @@ describe('UsersService', () => {
     password: 'hashedPassword',
     publicKey: '0x123',
     createdAt: new Date(),
+    googleId: null,
+    displayName: null,
   }
 
   beforeEach(async () => {
@@ -73,7 +76,7 @@ describe('UsersService', () => {
   })
 
   describe('registerUser', () => {
-    const createUserDto = {
+    const createUserDto: CreateUserDto = {
       email: 'test@example.com',
       password: 'password123',
     }
