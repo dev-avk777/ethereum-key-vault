@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing'
 import { AuthService } from './auth.service'
 import { UsersService } from './users.service'
+import { User } from '../entities/user.entity'
 import * as argon2 from 'argon2'
 
 jest.mock('argon2', () => ({
@@ -11,12 +12,14 @@ describe('AuthService', () => {
   let service: AuthService
   let usersService: jest.Mocked<UsersService>
 
-  const mockUser = {
+  const mockUser: User = {
     id: '123',
     email: 'test@example.com',
     password: 'hashedPassword',
     publicKey: '0x123',
     createdAt: new Date(),
+    googleId: null,
+    displayName: null,
   }
 
   beforeEach(async () => {

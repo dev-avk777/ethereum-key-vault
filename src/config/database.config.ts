@@ -10,14 +10,15 @@ export const databaseConfig: TypeOrmModuleOptions = {
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
   username: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || '773TWI!Qu,q!',
+  password: process.env.POSTGRES_PASSWORD || 'postgres',
   database: process.env.POSTGRES_DB || 'ethereum_key_vault',
   entities: [User],
-  synchronize: true, // Внимание: синхронизация схемы рекомендуется только в development-окружении!
-  logging: true,
-  ssl: false,
+  // Синхронизация схемы только в режиме разработки
+  synchronize: process.env.NODE_ENV === 'development',
+  logging: process.env.NODE_ENV === 'development',
+  ssl: process.env.NODE_ENV === 'production',
   extra: {
-    trustServerCertificate: true,
+    trustServerCertificate: process.env.NODE_ENV === 'development',
     max: 25,
     connectionTimeoutMillis: 10000,
   },

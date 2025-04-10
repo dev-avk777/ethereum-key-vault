@@ -96,3 +96,98 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# Ethereum Key Vault
+
+Система безопасного хранения и управления приватными ключами Ethereum с поддержкой аутентификации через Google OAuth.
+
+## Особенности
+
+- Безопасное хранение Ethereum ключей с использованием HashiCorp Vault
+- Аутентификация с помощью email/пароля или Google OAuth
+- Автоматическая генерация Ethereum ключей для новых пользователей
+- JWT авторизация для API запросов
+- Swagger документация для API
+- Поддержка разных окружений (development/production)
+
+## Требования
+
+- Node.js (v18+)
+- pnpm
+- PostgreSQL
+- HashiCorp Vault (опционально для разработки)
+
+## Установка
+
+1. Клонируйте репозиторий:
+   ```bash
+   git clone https://github.com/yourusername/ethereum-key-vault.git
+   cd ethereum-key-vault
+   ```
+
+2. Установите зависимости:
+   ```bash
+   pnpm install
+   ```
+
+3. Создайте и настройте файл окружения:
+   ```bash
+   cp .env.example .env
+   ```
+
+   Отредактируйте файл `.env` с вашими настройками.
+
+## Запуск для разработки
+
+```bash
+# Запуск с автоматическим управлением портами
+pnpm app
+
+# Стандартный запуск в режиме разработки
+pnpm start:dev
+```
+
+## Запуск тестов
+
+```bash
+# Unit тесты
+pnpm test
+
+# E2E тесты
+pnpm test:e2e
+
+# Тестовое покрытие
+pnpm test:cov
+```
+
+## Запуск в production
+
+1. Создайте файл `.env.production` с настройками для production окружения.
+
+2. Соберите приложение:
+   ```bash
+   pnpm build
+   ```
+
+3. Запустите приложение:
+   ```bash
+   NODE_ENV=production pnpm start:prod
+   ```
+
+## Google OAuth Настройка
+
+1. Создайте проект в [Google Cloud Console](https://console.cloud.google.com/)
+2. Настройте OAuth consent screen
+3. Создайте OAuth клиент и получите CLIENT_ID и CLIENT_SECRET
+4. Добавьте разрешенные redirect URI:
+   - Для разработки: `http://localhost:3000/auth/google/callback`
+   - Для production: `https://yourdomain.com/auth/google/callback`
+
+## API Endpoints
+
+- `GET /auth/google` - Инициирует процесс аутентификации через Google OAuth
+- `GET /auth/google/callback` - Обрабатывает ответ от Google OAuth
+- `POST /users/register` - Регистрирует нового пользователя
+- `POST /users/login` - Аутентифицирует пользователя по email/паролю
+
+Полная документация API доступна по адресу `/api` после запуска приложения.
