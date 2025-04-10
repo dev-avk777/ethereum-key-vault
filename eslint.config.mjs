@@ -1,16 +1,16 @@
-import js from '@eslint/js';
-import tsParser from '@typescript-eslint/parser';
-import tsPlugin from '@typescript-eslint/eslint-plugin';
-import { FlatCompat } from '@eslint/eslintrc';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import js from '@eslint/js'
+import tsParser from '@typescript-eslint/parser'
+import tsPlugin from '@typescript-eslint/eslint-plugin'
+import { FlatCompat } from '@eslint/eslintrc'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
-});
+})
 
 const config = [
   js.configs.recommended,
@@ -43,15 +43,14 @@ const config = [
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/consistent-type-imports': [
-        'error',
+        'warn',
         {
-          prefer: 'type-imports',
-          fixStyle: 'inline-type-imports',
+          prefer: 'no-type-imports',
         },
       ],
 
       // General rules
-      'no-console': ['warn', { allow: ['warn','log', 'error'] }],
+      'no-console': ['warn', { allow: ['warn', 'log', 'error'] }],
       'no-undef': 'off',
       'no-duplicate-imports': 'error',
       'no-unused-vars': 'off',
@@ -78,6 +77,6 @@ const config = [
       },
     },
   },
-];
+]
 
-export default config;
+export default config
