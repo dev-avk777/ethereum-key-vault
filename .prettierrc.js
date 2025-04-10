@@ -4,7 +4,6 @@ module.exports = {
   singleQuote: true,
   endOfLine: 'auto',
   printWidth: 100,
-  requirePragma: true,
   arrowParens: 'avoid',
   overrides: [
     {

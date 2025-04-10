@@ -58,18 +58,10 @@ const config = [
       'no-var': 'error',
       eqeqeq: ['error', 'always'],
       curly: ['error', 'all'],
-      'brace-style': ['error', '1tbs'],
-      quotes: ['error', 'single', { avoidEscape: true }],
-      indent: ['error', 2],
-      'max-len': [
-        'error',
-        {
-          code: 100,
-          ignoreStrings: true,
-          ignoreTemplateLiterals: true,
-          ignoreComments: true,
-        },
-      ],
+      'brace-style': 'off',
+      quotes: 'off',
+      indent: 'off',
+      'max-len': 'off',
     },
     settings: {
       'import/resolver': {
