@@ -13,6 +13,15 @@ import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 
+// Интерфейс для типизации пользователя, возвращаемого GoogleStrategy
+interface AuthenticatedUser {
+  id: string
+  email: string
+  googleId: string | null
+  displayName: string | null
+  publicKey: string // Убираем | null, так как в User это поле не nullable
+}
+
 /**
  * AuthController обрабатывает запросы, связанные с аутентификацией через Google OAuth.
  * Он предоставляет два основных эндпоинта:
@@ -29,10 +38,6 @@ export class AuthController {
     private readonly configService: ConfigService
   ) {}
 
-  /**
-   * Инициирует процесс аутентификации через Google.
-   * Перенаправляет пользователя на страницу аутентификации Google.
-   */
   @ApiOperation({ summary: 'Начать процесс авторизации через Google' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
@@ -40,32 +45,21 @@ export class AuthController {
     // Этот метод не будет вызван, так как Passport сразу перенаправит на Google
   }
 
-  /**
-   * Обрабатывает ответ от Google после успешной аутентификации.
-   * Создает JWT токен и перенаправляет пользователя на фронтенд с токеном.
-   * @param req - HTTP запрос, содержащий данные пользователя
-   * @param res - HTTP ответ для перенаправления
-   */
   @ApiOperation({ summary: 'Обработка ответа от Google OAuth' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+  googleAuthCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     try {
-      // Получаем пользователя из запроса (добавлен Passport стратегией)
-      const user = req.user as {
-        id: string
-        email: string
-        googleId: string
-        displayName: string
-        publicKey: string
-      }
+      const user = req.user as AuthenticatedUser
 
       if (!user || !user.id) {
-        this.logger.error('No user data received from Google OAuth')
+        this.logger.error('No user data received from Google OAuth', {
+          userId: user?.id,
+          email: user?.email,
+        })
         throw new InternalServerErrorException('Authentication failed')
       }
 
-      // Создаем JWT токен с данными пользователя
       const token = this.jwtService.sign({
         id: user.id,
         email: user.email,
@@ -74,30 +68,33 @@ export class AuthController {
         publicKey: user.publicKey,
       })
 
-      // Получаем URL фронтенда из конфигурации
       const frontendUrl = this.configService.get<string>('FRONTEND_URL')
       if (!frontendUrl) {
         this.logger.error('FRONTEND_URL is not configured')
         throw new InternalServerErrorException('Server configuration error')
       }
 
-      // Перенаправляем на фронтенд с токеном в параметрах URL
-      res.redirect(`${frontendUrl}/profile?authToken=${token}`)
+      res.cookie('authToken', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000,
+      })
+
+      res.redirect(`${frontendUrl}/profile`)
     } catch (error) {
-      this.logger.error(`Error during Google authentication callback: ${error.message}`)
-      // Перенаправляем на страницу ошибки на фронтенде
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      this.logger.error(`Error during Google authentication callback: ${errorMessage}`, {
+        userId: (req.user as AuthenticatedUser)?.id,
+        email: (req.user as AuthenticatedUser)?.email,
+      })
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173'
       res.redirect(
-        `${frontendUrl}/auth-error?message=${encodeURIComponent('Authentication failed')}`
+        `${frontendUrl}/auth-error?message=${encodeURIComponent('Authentication failed')}&code=500`
       )
     }
   }
 
-  /**
-   * Возвращает информацию о пользователе на основе JWT токена.
-   * @param req - HTTP запрос, содержащий данные пользователя
-   * @returns Информация о пользователе
-   */
   @ApiOperation({ summary: 'Получить информацию о текущем пользователе' })
   @ApiBearerAuth()
   @Get('user-info')

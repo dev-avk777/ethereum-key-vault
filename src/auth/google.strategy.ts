@@ -4,6 +4,22 @@ import { Strategy, VerifyCallback, StrategyOptions, Profile } from 'passport-goo
 import { ConfigService } from '@nestjs/config'
 import { UsersService } from '../services/users.service'
 
+// Интерфейс для данных пользователя, получаемых от Google
+interface GoogleUserData {
+  googleId: string
+  email: string
+  displayName: string
+}
+
+// Интерфейс для типизации пользователя, возвращаемого UsersService
+interface AuthenticatedUser {
+  id: string
+  email: string
+  googleId: string | null
+  displayName: string | null
+  publicKey: string // Убираем | null, так как в User это поле не nullable
+}
+
 /**
  * GoogleStrategy реализует аутентификацию через Google OAuth.
  * Она использует библиотеку passport и passport-google-oauth20 для обработки OAuth-потока.
@@ -30,17 +46,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       callbackURL: googleCallbackUrl,
       scope: ['email', 'profile'],
     } as StrategyOptions)
+
+    // Логируем значения для отладки
+    this.logger.log(`GOOGLE_CLIENT_ID: ${googleClientId}`)
+    this.logger.log(`GOOGLE_CLIENT_SECRET: ${googleClientSecret}`)
+    this.logger.log(`GOOGLE_CALLBACK_URL: ${googleCallbackUrl}`)
   }
 
-  /**
-   * Метод validate вызывается после успешной аутентификации пользователя через Google.
-   * Здесь мы проверяем, существует ли пользователь с таким Google ID в нашей системе.
-   * Если пользователь не существует, мы создаем нового пользователя с его Google профилем.
-   * @param accessToken - Токен доступа от Google
-   * @param refreshToken - Токен обновления от Google
-   * @param profile - Профиль пользователя Google
-   * @param done - Функция обратного вызова для возврата пользователя
-   */
   async validate(
     accessToken: string,
     refreshToken: string,
@@ -48,28 +60,30 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback
   ): Promise<void> {
     try {
-      const { id, name, emails } = profile
+      const { id, emails, name } = profile
 
       if (!id || !emails || emails.length === 0) {
-        this.logger.error('Incomplete profile data from Google')
+        this.logger.error('Incomplete profile data from Google', { googleId: id })
         return done(new Error('Invalid profile data from Google'), undefined)
       }
 
-      // Создаем объект пользователя, который будет передан в done()
-      const userData = {
+      const userData: GoogleUserData = {
         googleId: id,
         email: emails[0].value,
-        displayName: name ? name.givenName + ' ' + name.familyName : emails[0].value,
+        displayName: name
+          ? `${name.givenName || ''} ${name.familyName || ''}`.trim()
+          : emails[0].value,
       }
 
       try {
-        // Находим или создаем пользователя
-        const user = await this.usersService.findOrCreateFromGoogle(userData)
-        // Передаем пользователя в done()
+        const user: AuthenticatedUser = await this.usersService.findOrCreateFromGoogle(userData)
         done(null, user)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        this.logger.error(`Error processing Google authentication: ${errorMessage}`)
+        this.logger.error(`Error processing Google authentication: ${errorMessage}`, {
+          googleId: id,
+          email: userData.email,
+        })
         done(error as Error, undefined)
       }
     } catch (error) {

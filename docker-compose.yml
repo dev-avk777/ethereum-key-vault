@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
@@ -12,13 +10,16 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./pg_hba.conf:/pg_hba.conf:ro
+    command: >
+      bash -c "cp /pg_hba.conf /var/lib/postgresql/data/pg_hba.conf && chown postgres:postgres /var/lib/postgresql/data/pg_hba.conf && docker-entrypoint.sh postgres"
     networks:
       - app-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   vault:
     image: hashicorp/vault:1.19.1
@@ -28,6 +29,8 @@ services:
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: dev-only-token
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_API_ADDR: http://vault:8200
+      VAULT_ADDR: http://0.0.0.0:8200
     cap_add:
       - IPC_LOCK
     volumes:
@@ -35,10 +38,34 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ["CMD", "wget", "--spider", "--header", "X-Vault-Token: dev-only-token", "http://127.0.0.1:8200/v1/sys/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 40s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://[::1]:5000"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:

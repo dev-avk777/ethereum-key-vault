@@ -7,6 +7,22 @@ import { VaultService } from './vault.service'
 import { Wallet } from 'ethers'
 import * as argon2 from 'argon2'
 
+// Интерфейс для данных пользователя, получаемых от Google
+interface GoogleUserData {
+  googleId: string
+  email: string
+  displayName: string
+}
+
+// Интерфейс для типизации пользователя, возвращаемого UsersService
+interface AuthenticatedUser {
+  id: string
+  email: string
+  googleId: string | null
+  displayName: string | null
+  publicKey: string
+}
+
 /**
  * UsersService содержит логику по регистрации пользователя, генерации Ethereum кошелька,
  * сохранению приватного ключа в Vault и публичного ключа в базе данных.
@@ -62,8 +78,9 @@ export class UsersService {
       // Возвращаем данные пользователя (без пароля)
       return { id: user.id, email: user.email, publicKey: user.publicKey }
     } catch (error) {
-      this.logger.error(`Failed to register user ${email}: ${error.message}`)
-      throw new InternalServerErrorException(`Failed to register user: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      this.logger.error(`Failed to register user ${email}: ${errorMessage}`)
+      throw new InternalServerErrorException(`Failed to register user: ${errorMessage}`)
     }
   }
 
@@ -97,11 +114,7 @@ export class UsersService {
    * @param userData - Данные пользователя из Google OAuth
    * @returns Объект пользователя
    */
-  async findOrCreateFromGoogle(userData: {
-    googleId: string
-    email: string
-    displayName: string
-  }): Promise<User> {
+  async findOrCreateFromGoogle(userData: GoogleUserData): Promise<AuthenticatedUser> {
     if (!userData.googleId || !userData.email) {
       this.logger.error('Incomplete user data from Google OAuth')
       throw new Error('Incomplete user data for OAuth authentication')
@@ -145,8 +158,9 @@ export class UsersService {
             `Created new user from Google OAuth: ${userData.email} with publicKey: ${publicKey}`
           )
         } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
           this.logger.error(
-            `Failed to store private key in Vault for user ${userData.email}: ${error.message}`
+            `Failed to store private key in Vault for user ${userData.email}: ${errorMessage}`
           )
           throw new InternalServerErrorException('Failed to create user account')
         }
@@ -159,12 +173,20 @@ export class UsersService {
         await this.userRepository.save(user)
       }
 
-      return user
+      // Преобразуем User в AuthenticatedUser
+      return {
+        id: user.id,
+        email: user.email,
+        googleId: user.googleId,
+        displayName: user.displayName,
+        publicKey: user.publicKey,
+      }
     } catch (error) {
-      this.logger.error(`Error in findOrCreateFromGoogle: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      this.logger.error(`Error in findOrCreateFromGoogle: ${errorMessage}`)
       throw error instanceof InternalServerErrorException
         ? error
-        : new InternalServerErrorException(`Authentication failed: ${error.message}`)
+        : new InternalServerErrorException(`Authentication failed: ${errorMessage}`)
     }
   }
 }

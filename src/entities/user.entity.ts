@@ -1,38 +1,25 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm'
 
-/**
- * Сущность пользователя.
- * Здесь хранится информация о пользователе: его уникальный id (в формате UUID),
- * email (уникальный для каждого пользователя), хешированный пароль и публичный ключ Ethereum.
- * Также хранится информация для Google OAuth аутентификации.
- * Автоматически сохраняется время создания записи.
- */
 @Entity({ name: 'users' })
 export class User {
-  // Используем UUID в качестве уникального идентификатора пользователя
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  // Email пользователя, должен быть уникальным
-  @Column({ unique: true })
+  @Column({ unique: true, type: 'varchar' })
   email: string
 
-  // Хешированный пароль, который будет храниться после шифрования с помощью bcrypt
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   password: string | null
 
-  // Публичный ключ Ethereum (адрес кошелька)
-  @Column({ unique: true })
+  @Column({ unique: true, type: 'varchar' })
   publicKey: string
 
-  // Google OAuth поля
-  @Column({ nullable: true, name: 'google_id' })
+  @Column({ nullable: true, name: 'google_id', type: 'varchar' })
   googleId: string | null
 
-  @Column({ nullable: true, name: 'display_name' })
+  @Column({ nullable: true, name: 'display_name', type: 'varchar' })
   displayName: string | null
 
-  // Автоматически сохраняем дату создания записи
   @CreateDateColumn()
   createdAt: Date
 }

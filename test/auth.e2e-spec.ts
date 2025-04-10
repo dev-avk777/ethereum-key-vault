@@ -4,6 +4,7 @@ import * as request from 'supertest'
 import { AppModule } from '../src/app.module'
 import { JwtService } from '@nestjs/jwt'
 import { GoogleStrategy } from '../src/auth/google.strategy'
+import { VerifyCallback } from 'passport-google-oauth20'
 
 describe('Auth (e2e)', () => {
   let app: INestApplication
@@ -16,6 +17,23 @@ describe('Auth (e2e)', () => {
 
     app = moduleFixture.createNestApplication()
     jwtService = moduleFixture.get<JwtService>(JwtService)
+
+    // Мокируем метод validate в GoogleStrategy
+    jest
+      .spyOn(GoogleStrategy.prototype, 'validate')
+      .mockImplementation(
+        async (accessToken: string, refreshToken: string, profile: any, done: VerifyCallback) => {
+          const mockUser = {
+            id: '123',
+            email: 'test@example.com',
+            googleId: 'google123',
+            displayName: 'Test User',
+            publicKey: '0x123abc',
+          }
+          done(null, mockUser) // Вызываем done с пользователем
+        }
+      )
+
     await app.init()
   })
 
@@ -37,18 +55,6 @@ describe('Auth (e2e)', () => {
 
   describe('/auth/google/callback (GET)', () => {
     it('should redirect to frontend with token', async () => {
-      // Mock данных пользователя, который будет возвращать GoogleStrategy
-      const mockUser = {
-        id: '123',
-        email: 'test@example.com',
-        googleId: 'google123',
-        displayName: 'Test User',
-        publicKey: '0x123abc',
-      }
-
-      // Мокируем метод validate в GoogleStrategy
-      jest.spyOn(GoogleStrategy.prototype, 'validate').mockImplementation(async () => mockUser)
-
       // Мокируем JwtService.sign, чтобы вернуть фиксированный токен
       const mockToken = 'mock-jwt-token'
       jest.spyOn(jwtService, 'sign').mockReturnValue(mockToken)
@@ -62,9 +68,13 @@ describe('Auth (e2e)', () => {
 
     it('should handle errors during oauth callback', async () => {
       // Мокируем ошибку в GoogleStrategy
-      jest.spyOn(GoogleStrategy.prototype, 'validate').mockImplementation(async () => {
-        throw new Error('Authentication failed')
-      })
+      jest
+        .spyOn(GoogleStrategy.prototype, 'validate')
+        .mockImplementation(
+          async (accessToken: string, refreshToken: string, profile: any, done: VerifyCallback) => {
+            done(new Error('Authentication failed'), false)
+          }
+        )
 
       // Делаем запрос к callback endpoint
       const response = await request(app.getHttpServer()).get('/auth/google/callback').expect(302) // Проверяем редирект
@@ -73,9 +83,6 @@ describe('Auth (e2e)', () => {
       expect(response.headers.location).toContain('auth-error')
     })
   })
-
-  // Тесты для /auth/google/callback сложно написать из-за OAuth процесса,
-  // поэтому мы можем проверить только некоторые аспекты JWT генерации
 
   describe('JWT Generation', () => {
     it('should generate valid JWT token', () => {

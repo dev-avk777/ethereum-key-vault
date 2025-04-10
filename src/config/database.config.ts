@@ -16,7 +16,7 @@ export const databaseConfig: TypeOrmModuleOptions = {
   // Синхронизация схемы только в режиме разработки
   synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',
-  ssl: process.env.NODE_ENV === 'production',
+  ssl: false,
   extra: {
     trustServerCertificate: process.env.NODE_ENV === 'development',
     max: 25,
