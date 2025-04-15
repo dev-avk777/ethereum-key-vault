@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
+    "start": "node dist/src/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main",
@@ -19,8 +19,6 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prepare": "if [ \"$NODE_ENV\" != \"production\" ] && command -v husky >/dev/null 2>&1; then husky; fi",
-    "app": "node manage-app.js",
-    "fix-imports": "node fix-imports.js",
     "typeorm": "ts-node -r tsconfig-paths/register node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- migration:generate src/migrations/InitialMigration -d src/config/datasource.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/config/datasource.ts",
