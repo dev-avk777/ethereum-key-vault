@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config'
 import { UsersModule } from './modules/users.module'
 import { AuthModule } from './modules/auth.module'
 import { databaseConfig } from './config/database.config'
+import { EthereumController } from './controllers/ethereum.controller'
 
 @Module({
   imports: [
@@ -19,5 +20,7 @@ import { databaseConfig } from './config/database.config'
     // Подключаем модуль аутентификации через Google OAuth
     AuthModule,
   ],
+  controllers: [EthereumController],
+  providers: [],
 })
 export class AppModule {}

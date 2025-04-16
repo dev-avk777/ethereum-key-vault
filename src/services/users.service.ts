@@ -94,6 +94,15 @@ export class UsersService {
   }
 
   /**
+   * Находит пользователя по ID.
+   * @param id - ID пользователя.
+   * @returns Объект пользователя или null, если не найден.
+   */
+  async findById(id: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { id } })
+  }
+
+  /**
    * Валидирует пользователя по email и паролю.
    * Сравнивает предоставленный пароль с хешированным в базе данных.
    * @param email - Email пользователя.

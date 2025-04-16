@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { ConfigService } from '@nestjs/config'
+import { Request } from 'express'
 
 // Определяем интерфейс для JWT payload
 interface JwtPayload {
@@ -22,7 +23,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (req: Request) => {
+        // Пытаемся извлечь токен из куки authToken
+        if (req && req.cookies && req.cookies.authToken) {
+          return req.cookies.authToken
+        }
+        // Если в куках нет, то пробуем взять из заголовка Authorization
+        return ExtractJwt.fromAuthHeaderAsBearerToken()(req)
+      },
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
     })

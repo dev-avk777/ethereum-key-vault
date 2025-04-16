@@ -4,47 +4,35 @@ services:
   postgres:
     image: postgres:15
     container_name: postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ethereum_key_vault
     ports:
       - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ethereum_key_vault}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./pg_hba.conf:/pg_hba.conf:ro
-    command: >
-      bash -c "cp /pg_hba.conf /var/lib/postgresql/data/pg_hba.conf && chown postgres:postgres /var/lib/postgresql/data/pg_hba.conf && docker-entrypoint.sh postgres"
-    networks:
-      - app-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   vault:
-    image: hashicorp/vault:1.19.1
+    image: hashicorp/vault:latest
     container_name: vault
     ports:
       - "8200:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: dev-only-token
-      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
-      VAULT_API_ADDR: http://vault:8200
-      VAULT_ADDR: http://0.0.0.0:8200
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-dev-only-token}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
     cap_add:
       - IPC_LOCK
-    volumes:
-      - vault_data:/vault/file
-    networks:
-      - app-network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--header", "X-Vault-Token: dev-only-token", "http://127.0.0.1:8200/v1/sys/health"]
-      interval: 5s
+      test: ["CMD", "vault", "status"]
+      interval: 10s
       timeout: 5s
-      retries: 40
-      start_period: 40s
+      retries: 5
 
   app:
     build:
@@ -53,21 +41,26 @@ services:
     container_name: app
     ports:
       - "5000:5000"
-    env_file:
-      - .env
     depends_on:
       postgres:
         condition: service_healthy
       vault:
         condition: service_healthy
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ethereum_key_vault}
+      VAULT_ENDPOINT: http://vault:8200
+      VAULT_TOKEN: ${VAULT_TOKEN:-dev-only-token}
+      PORT: 5000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3007}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:5000/auth/google/callback}
 
   frontend:
     build:
@@ -76,22 +69,15 @@ services:
     container_name: frontend
     ports:
       - "3007:3007"
-    environment:
-      - VITE_AUTH_API_URL=http://app:5000  # Используем имя сервиса для доступа к бэкенду
-      - VITE_FRONTEND_URL=http://localhost:3007
     depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - webnet
-      - app-network
+      - app
+    environment:
+      VITE_API_URL: http://app:5000
+      VITE_FRONTEND_URL: http://localhost:3007
+
+networks:
+  default:
+    driver: bridge
 
 volumes:
   postgres_data:
-  vault_data:
-
-networks:
-  app-network:
-    driver: bridge
-  webnet:
-    driver: bridge

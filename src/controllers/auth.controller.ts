@@ -79,12 +79,14 @@ export class AuthController {
 
       this.logger.log(`Using frontend URL: ${frontendUrl}`)
 
-      // При запуске в Docker, используем более гибкие настройки для куки
+      // Обновляем настройки куки для обеспечения работы в Docker и в production
       res.cookie('authToken', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // true в production
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
+        secure: false, // Всегда false для локальной разработки и Docker
+        sameSite: 'lax', // Используем lax для лучшей совместимости
+        maxAge: 24 * 60 * 60 * 1000, // 24 часа
+        path: '/', // Важно для доступности куки во всем приложении
+        domain: undefined, // Убираем domain для работы в разных окружениях
       })
 
       // Передаем данные пользователя в URL для фронтенда
@@ -123,11 +125,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Выйти из системы' })
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    // Удаляем куки с такими же параметрами, с которыми они были созданы
+    // Обновляем параметры удаления куки, чтобы они совпадали с установкой
     res.clearCookie('authToken', {
       httpOnly: true,
       secure: false,
-      sameSite: 'none',
+      sameSite: 'lax',
+      path: '/',
     })
     return { success: true, message: 'Logged out successfully' }
   }
