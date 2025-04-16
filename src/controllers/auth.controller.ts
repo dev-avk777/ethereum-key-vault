@@ -6,6 +6,7 @@ import {
   UseGuards,
   InternalServerErrorException,
   Logger,
+  Post,
 } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
 import { JwtService } from '@nestjs/jwt'
@@ -41,8 +42,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Начать процесс авторизации через Google' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleAuth() {
+  googleAuth(@Req() req: Request) {
     // Этот метод не будет вызван, так как Passport сразу перенаправит на Google
+    // Но мы можем добавить логирование для дебага
+    this.logger.log(`Starting Google authentication, redirect_uri: ${req.query.redirect_uri}`)
   }
 
   @ApiOperation({ summary: 'Обработка ответа от Google OAuth' })
@@ -74,21 +77,35 @@ export class AuthController {
         throw new InternalServerErrorException('Server configuration error')
       }
 
+      this.logger.log(`Using frontend URL: ${frontendUrl}`)
+
+      // При запуске в Docker, используем более гибкие настройки для куки
       res.cookie('authToken', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: false, // Отключаем для локальной разработки
+        sameSite: 'none', // Позволяет cross-site cookies
         maxAge: 24 * 60 * 60 * 1000,
       })
 
-      res.redirect(`${frontendUrl}/profile`)
+      // Передаем данные пользователя в URL для фронтенда
+      const userDataParam = encodeURIComponent(
+        JSON.stringify({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          publicKey: user.publicKey,
+        })
+      )
+
+      this.logger.log(`Redirecting to ${frontendUrl}/callback with user data`)
+      res.redirect(`${frontendUrl}/callback?userData=${userDataParam}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       this.logger.error(`Error during Google authentication callback: ${errorMessage}`, {
         userId: (req.user as AuthenticatedUser)?.id,
         email: (req.user as AuthenticatedUser)?.email,
       })
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173'
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3007'
       res.redirect(
         `${frontendUrl}/auth-error?message=${encodeURIComponent('Authentication failed')}&code=500`
       )
@@ -101,5 +118,17 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   getUserInfo(@Req() req: Request) {
     return req.user
+  }
+
+  @ApiOperation({ summary: 'Выйти из системы' })
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    // Удаляем куки с такими же параметрами, с которыми они были созданы
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'none',
+    })
+    return { success: true, message: 'Logged out successfully' }
   }
 }

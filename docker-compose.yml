@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   postgres:
     image: postgres:15
@@ -67,10 +69,29 @@ services:
       retries: 5
       start_period: 10s
 
+  frontend:
+    build:
+      context: ../oauth-frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3007:3007"
+    environment:
+      - VITE_AUTH_API_URL=http://app:5000  # Используем имя сервиса для доступа к бэкенду
+      - VITE_FRONTEND_URL=http://localhost:3007
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - webnet
+      - app-network
+
 volumes:
   postgres_data:
   vault_data:
 
 networks:
   app-network:
+    driver: bridge
+  webnet:
     driver: bridge

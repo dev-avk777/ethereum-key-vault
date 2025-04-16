@@ -18,7 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prepare": "if [ \"$NODE_ENV\" != \"production\" ] && command -v husky >/dev/null 2>&1; then husky; fi",
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') { import('husky'); }\"",
     "typeorm": "ts-node -r tsconfig-paths/register node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- migration:generate src/migrations/InitialMigration -d src/config/datasource.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/config/datasource.ts",
@@ -31,13 +31,13 @@
     ]
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/common": "^11.0.20",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/swagger": "^11.1.0",
+    "@nestjs/swagger": "^11.1.3",
     "@nestjs/typeorm": "^11.0.0",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/passport-jwt": "^4.0.1",
@@ -46,6 +46,7 @@
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.5",
+    "express": "^5.1.0",
     "node-vault": "^0.10.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
@@ -106,5 +107,6 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  }
+  },
+  "packageManager": "pnpm@10.8.1+sha256.d8b2ebbc65cf02c349eca6b45c9640b910f16b6adebdb7b926e9db440e47cac7"
 }
