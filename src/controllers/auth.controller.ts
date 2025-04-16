@@ -82,8 +82,8 @@ export class AuthController {
       // При запуске в Docker, используем более гибкие настройки для куки
       res.cookie('authToken', token, {
         httpOnly: true,
-        secure: false, // Отключаем для локальной разработки
-        sameSite: 'none', // Позволяет cross-site cookies
+        secure: process.env.NODE_ENV === 'production', // true в production
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       })
 
