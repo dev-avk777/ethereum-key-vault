@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
   postgres:
@@ -16,7 +15,13 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   vault:
     image: hashicorp/vault:latest
@@ -32,52 +37,19 @@ services:
       test: ["CMD", "vault", "status"]
       interval: 10s
       timeout: 5s
-      retries: 5
-
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: app
-    ports:
-      - "5000:5000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-ethereum_key_vault}
-      VAULT_ENDPOINT: http://vault:8200
-      VAULT_TOKEN: ${VAULT_TOKEN:-dev-only-token}
-      PORT: 5000
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3007}
-      JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:5000/auth/google/callback}
-
-  frontend:
-    build:
-      context: ../oauth-frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    ports:
-      - "3007:3007"
-    depends_on:
-      - app
-    environment:
-      VITE_API_URL: http://app:5000
-      VITE_FRONTEND_URL: http://localhost:3007
-
-networks:
-  default:
-    driver: bridge
+      retries: 40
+      start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   postgres_data:
+  vault_data:
+
+networks:
+  app-network:
+    driver: bridge
