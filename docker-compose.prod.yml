@@ -1,3 +1,4 @@
+version: "3.8"
 
 services:
   postgres:
@@ -5,10 +6,8 @@ services:
     container_name: postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: your-secure-postgres-password
       POSTGRES_DB: ethereum_key_vault
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./pg_hba.conf:/pg_hba.conf:ro
@@ -31,10 +30,8 @@ services:
   vault:
     image: hashicorp/vault:1.19.1
     container_name: vault
-    ports:
-      - "8200:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: dev-only-token
+      VAULT_DEV_ROOT_TOKEN_ID: your-secure-vault-token
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
       VAULT_API_ADDR: http://vault:8200
       VAULT_ADDR: http://0.0.0.0:8200
@@ -45,11 +42,61 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--header", "X-Vault-Token: dev-only-token", "http://127.0.0.1:8200/v1/sys/health"]
+      test: ["CMD", "wget", "--spider", "--header", "X-Vault-Token: your-secure-vault-token", "http://127.0.0.1:8200/v1/sys/health"]
       interval: 5s
       timeout: 5s
       retries: 40
       start_period: 40s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ../oauth-frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    env_file:
+      - ../oauth-frontend/.env.production
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - app-network
     restart: unless-stopped
     logging:
       driver: "json-file"
