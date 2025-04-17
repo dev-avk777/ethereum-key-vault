@@ -4,6 +4,7 @@
   "description": "",
   "author": "",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -17,12 +18,6 @@
     "migration:generate": "pnpm run typeorm -- migration:generate -d src/config/datasource.ts src/migrations/InitialMigration",
     "migration:run": "pnpm run typeorm -- migration:run      -d src/config/datasource.ts",
     "migration:revert": "pnpm run typeorm -- migration:revert   -d src/config/datasource.ts"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "eslint --fix",
-      "prettier --write"
-    ]
   },
   "dependencies": {
     "@nestjs/common": "^11.0.20",
