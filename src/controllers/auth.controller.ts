@@ -82,11 +82,9 @@ export class AuthController {
       // Обновляем настройки куки для обеспечения работы в Docker и в production
       res.cookie('authToken', token, {
         httpOnly: true,
-        secure: false, // Всегда false для локальной разработки и Docker
-        sameSite: 'lax', // Используем lax для лучшей совместимости
-        maxAge: 24 * 60 * 60 * 1000, // 24 часа
-        path: '/', // Важно для доступности куки во всем приложении
-        domain: undefined, // Убираем domain для работы в разных окружениях
+        secure: process.env.NODE_ENV === 'production', // true в production
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
       })
 
       // Передаем данные пользователя в URL для фронтенда
