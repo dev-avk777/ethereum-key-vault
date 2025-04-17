@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"], // Указываем типы для Jest и Node.js
+    "noEmit": true // Тесты не компилируются в JS
+  },
+  "include": ["src/**/*.spec.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

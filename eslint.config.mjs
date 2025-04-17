@@ -1,24 +1,14 @@
 import js from '@eslint/js'
 import tsParser from '@typescript-eslint/parser'
 import tsPlugin from '@typescript-eslint/eslint-plugin'
-import { FlatCompat } from '@eslint/eslintrc'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import globals from 'globals'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-})
-
-const config = [
-  js.configs.recommended,
-  ...compat.config({
-    ignorePatterns: ['dist/**', 'node_modules/**', 'build/**'],
-  }),
+export default [
   {
-    files: ['src/**/*.{js,ts}', 'test/**/*.{js,ts}'], // Добавлен test
+    ignores: ['dist/**', 'node_modules/**', 'build/**'],
+  },
+  {
+    files: ['src/**/*.{js,ts}', '!src/**/*.spec.ts', '!test/**/*.{js,ts}'],
     plugins: {
       '@typescript-eslint': tsPlugin,
     },
@@ -27,11 +17,16 @@ const config = [
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
+        project: './tsconfig.json',
+        tsconfigRootDir: process.cwd(),
+      },
+      globals: {
+        ...globals.node,
       },
     },
     rules: {
+      ...js.configs.recommended.rules,
       ...tsPlugin.configs.recommended.rules,
-      // TypeScript rules
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -48,8 +43,6 @@ const config = [
           prefer: 'no-type-imports',
         },
       ],
-
-      // General rules
       'no-console': ['warn', { allow: ['warn', 'log', 'error'] }],
       'no-undef': 'off',
       'no-duplicate-imports': 'error',
@@ -65,25 +58,41 @@ const config = [
     },
     settings: {
       'import/resolver': {
-        typescript: {},
+        typescript: {
+          alwaysTryTypes: true,
+          project: './tsconfig.json',
+        },
       },
     },
   },
   {
-    files: ['*.js'],
+    files: ['src/**/*.spec.ts', 'test/**/*.{js,ts}'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        project: './tsconfig.spec.json',
+        tsconfigRootDir: process.cwd(),
+      },
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: ['*.{js,mjs}'],
     languageOptions: {
       parserOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
       globals: {
-        require: 'readonly',
-        module: 'readonly',
-        process: 'readonly',
-        console: 'readonly',
-        setTimeout: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
+        ...globals.node,
       },
     },
     rules: {
@@ -92,5 +101,3 @@ const config = [
     },
   },
 ]
-
-export default config
