@@ -1,5 +1,4 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm'
-import { User } from '../entities/user.entity'
 
 /**
  * Конфигурация для подключения к базе данных PostgreSQL с использованием TypeORM.
@@ -12,7 +11,7 @@ export const databaseConfig: TypeOrmModuleOptions = {
   username: process.env.POSTGRES_USER || 'postgres',
   password: process.env.POSTGRES_PASSWORD || 'postgres',
   database: process.env.POSTGRES_DB || 'ethereum_key_vault',
-  entities: [User],
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   // Синхронизация схемы только в режиме разработки
   synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',

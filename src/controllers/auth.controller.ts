@@ -6,7 +6,6 @@ import {
   UseGuards,
   InternalServerErrorException,
   Logger,
-  Post,
 } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
 import { JwtService } from '@nestjs/jwt'
@@ -14,21 +13,15 @@ import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 
-// Интерфейс для типизации пользователя, возвращаемого GoogleStrategy
+// Интерфейс, совпадает с тем, что возвращает GoogleStrategy
 interface AuthenticatedUser {
   id: string
   email: string
-  googleId: string | null
-  displayName: string | null
-  publicKey: string // Убираем | null, так как в User это поле не nullable
+  googleId: string
+  displayName: string
+  publicKey: string
 }
 
-/**
- * AuthController обрабатывает запросы, связанные с аутентификацией через Google OAuth.
- * Он предоставляет два основных эндпоинта:
- * - GET /auth/google - начало процесса аутентификации через Google
- * - GET /auth/google/callback - обработка ответа от Google
- */
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -39,80 +32,64 @@ export class AuthController {
     private readonly configService: ConfigService
   ) {}
 
-  @ApiOperation({ summary: 'Начать процесс авторизации через Google' })
+  @ApiOperation({ summary: 'Начать авторизацию через Google' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  googleAuth(@Req() req: Request) {
-    // Этот метод не будет вызван, так как Passport сразу перенаправит на Google
-    // Но мы можем добавить логирование для дебага
-    this.logger.log(`Starting Google authentication, redirect_uri: ${req.query.redirect_uri}`)
+  googleAuth(): void {
+    // Passport сам сделает редирект на Google
+    this.logger.log('Redirecting to Google OAuth endpoint')
   }
 
-  @ApiOperation({ summary: 'Обработка ответа от Google OAuth' })
+  @ApiOperation({ summary: 'Callback от Google OAuth' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  googleAuthCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    try {
-      const user = req.user as AuthenticatedUser
+  googleAuthCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response): void {
+    // req.user пришёл из GoogleStrategy.validate()
+    const user = req.user as AuthenticatedUser
+    if (!user || !user.id) {
+      this.logger.error('No user from GoogleStrategy', { user })
+      throw new InternalServerErrorException('Authentication failed')
+    }
 
-      if (!user || !user.id) {
-        this.logger.error('No user data received from Google OAuth', {
-          userId: user?.id,
-          email: user?.email,
-        })
-        throw new InternalServerErrorException('Authentication failed')
-      }
+    // Подписываем JWT
+    const token = this.jwtService.sign({
+      id: user.id,
+      email: user.email,
+      googleId: user.googleId,
+      displayName: user.displayName,
+      publicKey: user.publicKey,
+    })
 
-      const token = this.jwtService.sign({
+    // Готовим cookie
+    const isProd = this.configService.get('NODE_ENV') === 'production'
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+    })
+
+    // Редирект на фронтенд (без лишних ?redirect_uri или ?userData)
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL')
+    if (!frontendUrl) {
+      this.logger.error('FRONTEND_URL is not set')
+      throw new InternalServerErrorException('Server misconfiguration')
+    }
+    const userDataParam = encodeURIComponent(
+      JSON.stringify({
         id: user.id,
         email: user.email,
-        googleId: user.googleId,
         displayName: user.displayName,
         publicKey: user.publicKey,
       })
-
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL')
-      if (!frontendUrl) {
-        this.logger.error('FRONTEND_URL is not configured')
-        throw new InternalServerErrorException('Server configuration error')
-      }
-
-      this.logger.log(`Using frontend URL: ${frontendUrl}`)
-
-      // Обновляем настройки куки для обеспечения работы в Docker и в production
-      res.cookie('authToken', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // true в production
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
-      })
-
-      // Передаем данные пользователя в URL для фронтенда
-      const userDataParam = encodeURIComponent(
-        JSON.stringify({
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          publicKey: user.publicKey,
-        })
-      )
-
-      this.logger.log(`Redirecting to ${frontendUrl}/callback with user data`)
-      res.redirect(`${frontendUrl}/callback?userData=${userDataParam}`)
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      this.logger.error(`Error during Google authentication callback: ${errorMessage}`, {
-        userId: (req.user as AuthenticatedUser)?.id,
-        email: (req.user as AuthenticatedUser)?.email,
-      })
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3007'
-      res.redirect(
-        `${frontendUrl}/auth-error?message=${encodeURIComponent('Authentication failed')}&code=500`
-      )
-    }
+    )
+    const redirectUrl = `${frontendUrl}/callback?userData=${userDataParam}`
+    this.logger.log(`Authenticated, redirecting to → ${redirectUrl}`)
+    console.log('>>> env FRONTEND_URL =', process.env.FRONTEND_URL)
+    res.redirect(`${frontendUrl}/callback?userData=${userDataParam}`)
   }
 
-  @ApiOperation({ summary: 'Получить информацию о текущем пользователе' })
+  @ApiOperation({ summary: 'Получить данные авторизованного пользователя' })
   @ApiBearerAuth()
   @Get('user-info')
   @UseGuards(AuthGuard('jwt'))
@@ -120,16 +97,10 @@ export class AuthController {
     return req.user
   }
 
-  @ApiOperation({ summary: 'Выйти из системы' })
-  @Post('logout')
+  @ApiOperation({ summary: 'Выйти (удалить cookie)' })
+  @Get('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    // Обновляем параметры удаления куки, чтобы они совпадали с установкой
-    res.clearCookie('authToken', {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      path: '/',
-    })
-    return { success: true, message: 'Logged out successfully' }
+    res.clearCookie('authToken')
+    return { success: true }
   }
 }
