@@ -7,49 +7,42 @@ import * as cookieParser from 'cookie-parser'
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
 
-  // Добавляем middleware для обработки cookie
+  // Обрабатываем cookie
   app.use(cookieParser())
 
-  // Настройка CORS
+  // CORS: разрешаем только доверенные источники
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3007'
   const corsOptions = {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3007',
-      'http://localhost:5173',
-      process.env.FRONTEND_URL,
-    ].filter(Boolean),
+    origin: ['http://localhost:3000', frontendUrl],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }
-
   app.enableCors(corsOptions)
 
-  // Логирование разрешенных CORS-доменов
-  const logger = new Logger('CORS')
+  // Логируем, какие origin разрешены
+  const logger = new Logger('Bootstrap')
   logger.log(`Allowed CORS origins: ${corsOptions.origin.join(', ')}`)
 
-  // Включаем валидацию
-  app.useGlobalPipes(new ValidationPipe())
+  // Глобальная валидация DTO
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
 
-  // Настройка Swagger
-  const config = new DocumentBuilder()
+  // Swagger
+  const swaggerConfig = new DocumentBuilder()
     .setTitle('Ethereum Key Vault API')
-    .setDescription('API для регистрации пользователей с генерацией Ethereum кошельков')
+    .setDescription('API для регистрации пользователей и управления ключами')
     .setVersion('1.0')
-    .addTag('auth', 'Аутентификация')
-    .addTag('users', 'Операции с пользователями')
-    .addTag('ethereum', 'Операции с Ethereum')
+    .addCookieAuth('authToken')
     .build()
-
-  const document = SwaggerModule.createDocument(app, config)
+  const document = SwaggerModule.createDocument(app, swaggerConfig)
   SwaggerModule.setup('api', app, document)
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0') // Слушаем на всех интерфейсах
+  // Старт сервера
+  const port = parseInt(process.env.PORT || '5000', 10)
+  await app.listen(port, '0.0.0.0')
 
-  const url = await app.getUrl()
-  console.log(`Application is running on: ${url}`)
-  console.log(`Swagger documentation is available at: ${url}/api`)
-  console.log(`CORS origins allowed: ${app.getHttpAdapter().getInstance()._options.cors.origin}`)
+  logger.log(`Application running on: http://localhost:${port}`)
+  logger.log(`Swagger docs at: http://localhost:${port}/api`)
 }
+
 bootstrap()
