@@ -3,9 +3,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 import { ValidationPipe, Logger } from '@nestjs/common'
 import * as cookieParser from 'cookie-parser'
+import * as morgan from 'morgan'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
+
+  // HTTP‑логирование каждого запроса
+  app.use(morgan('dev'))
 
   // Обрабатываем cookie
   app.use(cookieParser())

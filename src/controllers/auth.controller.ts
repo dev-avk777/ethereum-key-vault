@@ -37,7 +37,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   googleAuth(): void {
     // Passport сам сделает редирект на Google
-    this.logger.log('Redirecting to Google OAuth endpoint')
+    this.logger.log('→ [Auth] GET /auth/google invoked; redirecting to Google')
   }
 
   @ApiOperation({ summary: 'Callback от Google OAuth' })
@@ -45,7 +45,9 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   googleAuthCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response): void {
     // req.user пришёл из GoogleStrategy.validate()
+    this.logger.log('← [Auth] GET /auth/google/callback invoked')
     const user = req.user as AuthenticatedUser
+    this.logger.debug('   Payload from strategy:', user)
     if (!user || !user.id) {
       this.logger.error('No user from GoogleStrategy', { user })
       throw new InternalServerErrorException('Authentication failed')
@@ -59,6 +61,7 @@ export class AuthController {
       displayName: user.displayName,
       publicKey: user.publicKey,
     })
+    this.logger.debug('   JWT generated')
 
     // Готовим cookie
     const isProd = this.configService.get('NODE_ENV') === 'production'
@@ -68,6 +71,7 @@ export class AuthController {
       sameSite: isProd ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     })
+    this.logger.log('   authToken cookie set')
 
     // Редирект на фронтенд (без лишних ?redirect_uri или ?userData)
     const frontendUrl = this.configService.get<string>('FRONTEND_URL')
@@ -94,13 +98,17 @@ export class AuthController {
   @Get('user-info')
   @UseGuards(AuthGuard('jwt'))
   getUserInfo(@Req() req: Request) {
+    this.logger.log('[Auth] GET /auth/user-info invoked')
+    this.logger.debug('   JWT payload:', req.user)
     return req.user
   }
 
   @ApiOperation({ summary: 'Выйти (удалить cookie)' })
   @Get('logout')
   logout(@Res({ passthrough: true }) res: Response) {
+    this.logger.log('[Auth] GET /auth/logout invoked; clearing authToken cookie')
     res.clearCookie('authToken')
+    this.logger.log('   authToken cookie cleared')
     return { success: true }
   }
 }
