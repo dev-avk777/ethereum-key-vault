@@ -7,16 +7,23 @@ import { UsersController } from '../controllers/users.controller'
 import { AuthService } from '../services/auth.service'
 import { LocalStrategy } from '../auth/local.strategy'
 import { PassportModule } from '@nestjs/passport'
+import { JwtModule } from '@nestjs/jwt'
+import { ConfigModule, ConfigService } from '@nestjs/config'
 
-/**
- * Модуль UsersModule объединяет все компоненты, связанные с пользователями:
- * - Сущность User (для работы с базой данных).
- * - Сервисы для управления пользователями и Vault.
- * - Контроллер для обработки запросов.
- * - Аутентификацию через Passport (LocalStrategy).
- */
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), PassportModule],
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    PassportModule,
+    ConfigModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
+    }),
+  ],
   controllers: [UsersController],
   providers: [VaultService, UsersService, AuthService, LocalStrategy],
   exports: [UsersService, AuthService],
