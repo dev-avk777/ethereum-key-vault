@@ -13,7 +13,6 @@ import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 
-// Интерфейс, совпадает с тем, что возвращает GoogleStrategy
 interface AuthenticatedUser {
   id: string
   email: string
@@ -36,7 +35,6 @@ export class AuthController {
   @Get('google')
   @UseGuards(AuthGuard('google'))
   googleAuth(): void {
-    // Passport сам сделает редирект на Google
     this.logger.log('→ [Auth] GET /auth/google invoked; redirecting to Google')
   }
 
@@ -44,16 +42,15 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   googleAuthCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response): void {
-    // req.user пришёл из GoogleStrategy.validate()
     this.logger.log('← [Auth] GET /auth/google/callback invoked')
     const user = req.user as AuthenticatedUser
-    this.logger.debug('   Payload from strategy:', user)
+    this.logger.debug(`[Auth] Google payload: ${JSON.stringify(user)}`)
+
     if (!user || !user.id) {
       this.logger.error('No user from GoogleStrategy', { user })
       throw new InternalServerErrorException('Authentication failed')
     }
 
-    // Подписываем JWT
     const token = this.jwtService.sign({
       id: user.id,
       email: user.email,
@@ -61,9 +58,8 @@ export class AuthController {
       displayName: user.displayName,
       publicKey: user.publicKey,
     })
-    this.logger.debug('   JWT generated')
+    this.logger.debug(`[Auth] JWT generated for ${user.email}`)
 
-    // Готовим cookie
     const isProd = this.configService.get('NODE_ENV') === 'production'
     res.cookie('authToken', token, {
       httpOnly: true,
@@ -71,14 +67,14 @@ export class AuthController {
       sameSite: isProd ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     })
-    this.logger.log('   authToken cookie set')
+    this.logger.log(`[Auth] Cookie set for ${user.email}`)
 
-    // Редирект на фронтенд (без лишних ?redirect_uri или ?userData)
     const frontendUrl = this.configService.get<string>('FRONTEND_URL')
     if (!frontendUrl) {
       this.logger.error('FRONTEND_URL is not set')
       throw new InternalServerErrorException('Server misconfiguration')
     }
+
     const userDataParam = encodeURIComponent(
       JSON.stringify({
         id: user.id,
@@ -88,9 +84,8 @@ export class AuthController {
       })
     )
     const redirectUrl = `${frontendUrl}/callback?userData=${userDataParam}`
-    this.logger.log(`Authenticated, redirecting to → ${redirectUrl}`)
-    console.log('>>> env FRONTEND_URL =', process.env.FRONTEND_URL)
-    res.redirect(`${frontendUrl}/callback?userData=${userDataParam}`)
+    this.logger.log(`[Auth] Redirecting to frontend: ${redirectUrl}`)
+    res.redirect(redirectUrl)
   }
 
   @ApiOperation({ summary: 'Получить данные авторизованного пользователя' })
@@ -98,8 +93,8 @@ export class AuthController {
   @Get('user-info')
   @UseGuards(AuthGuard('jwt'))
   getUserInfo(@Req() req: Request) {
-    this.logger.log('[Auth] GET /auth/user-info invoked')
-    this.logger.debug('   JWT payload:', req.user)
+    this.logger.log(`[Auth] GET /auth/user-info invoked by ${(<any>req.user).email}`)
+    this.logger.debug(`[Auth] JWT payload: ${JSON.stringify(req.user)}`)
     return req.user
   }
 
@@ -108,7 +103,7 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     this.logger.log('[Auth] GET /auth/logout invoked; clearing authToken cookie')
     res.clearCookie('authToken')
-    this.logger.log('   authToken cookie cleared')
+    this.logger.log('[Auth] authToken cookie cleared successfully')
     return { success: true }
   }
 }

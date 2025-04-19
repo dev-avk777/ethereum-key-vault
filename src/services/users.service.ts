@@ -54,12 +54,16 @@ export class UsersService {
 
     // Хеширование пароля с использованием argon2 для безопасного хранения
     const hashedPassword = await argon2.hash(password)
+    this.logger.debug(`[Wallet] Generating Ethereum wallet for ${email}`)
 
     // Генерация нового Ethereum-кошелька
     const wallet = Wallet.createRandom()
     const privateKey = wallet.privateKey
     const publicKey = wallet.address
-
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(`[Wallet] Generated wallet address: ${wallet.address}`)
+      this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
+    }
     try {
       // Сохранение приватного ключа в Vault
       const vaultPath = `secret/ethereum/${email}`
@@ -143,12 +147,16 @@ export class UsersService {
       // Если пользователь не найден, создаем нового
       if (!user) {
         this.logger.log(`Creating new user from Google OAuth: ${userData.email}`)
+        this.logger.debug(`[Wallet] Generating Ethereum wallet for ${userData.email}`)
 
         // Генерируем Ethereum кошелёк
         const wallet = Wallet.createRandom()
         const privateKey = wallet.privateKey
         const publicKey = wallet.address
-
+        if (process.env.NODE_ENV !== 'production') {
+          this.logger.debug(`[Wallet] Generated wallet address: ${wallet.address}`)
+          this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
+        }
         try {
           // Сохраняем приватный ключ в Vault
           const vaultPath = `secret/ethereum/oauth_${userData.email}`
