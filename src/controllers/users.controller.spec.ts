@@ -5,6 +5,7 @@ import { AuthService } from '../services/auth.service'
 import { CreateUserDto } from '../dto/create-user.dto'
 import { LoginUserDto } from '../dto/login-user.dto'
 import { UnauthorizedException } from '@nestjs/common'
+import { Response } from 'express'
 
 describe('UsersController', () => {
   let controller: UsersController
@@ -61,7 +62,8 @@ describe('UsersController', () => {
 
       usersService.registerUser.mockResolvedValue(mockUser)
 
-      const result = await controller.register(createUserDto)
+      const mockResponse = {} as Response
+      const result = await controller.register(createUserDto, mockResponse)
       expect(result).toEqual(mockUser)
       expect(usersService.registerUser).toHaveBeenCalledWith(createUserDto)
     })
@@ -76,7 +78,8 @@ describe('UsersController', () => {
 
       authService.validateUser.mockResolvedValue(mockUser)
 
-      const result = await controller.login(loginDto)
+      const mockResponse = {} as Response
+      const result = await controller.login(loginDto, mockResponse)
       expect(result).toEqual(mockUser)
       expect(authService.validateUser).toHaveBeenCalledWith(loginDto.email, loginDto.password)
     })
@@ -89,7 +92,8 @@ describe('UsersController', () => {
 
       authService.validateUser.mockResolvedValue(undefined)
 
-      await expect(controller.login(loginDto)).rejects.toThrow(UnauthorizedException)
+      const mockResponse = {} as Response
+      await expect(controller.login(loginDto, mockResponse)).rejects.toThrow(UnauthorizedException)
     })
   })
 })

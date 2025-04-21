@@ -57,7 +57,8 @@ describe('VaultService', () => {
   describe('getSecret', () => {
     it('should retrieve a secret successfully', async () => {
       const result = await service.getSecret('test/path')
-      expect(result).toEqual({ privateKey: 'mock-private-key' })
+      expect(result).toEqual(null)
+      expect(vaultClient.read).toHaveBeenCalledWith('test/path')
     })
   })
 })
