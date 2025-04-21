@@ -6,11 +6,15 @@ import { CreateUserDto } from '../dto/create-user.dto'
 import { LoginUserDto } from '../dto/login-user.dto'
 import { UnauthorizedException } from '@nestjs/common'
 import { Response } from 'express'
+import { JwtService } from '@nestjs/jwt'
+import { ConfigService } from '@nestjs/config'
 
 describe('UsersController', () => {
   let controller: UsersController
   let usersService: jest.Mocked<UsersService>
   let authService: jest.Mocked<AuthService>
+  let jwtService: jest.Mocked<JwtService>
+  let configService: jest.Mocked<ConfigService>
 
   const mockUser = {
     id: '123',
@@ -32,6 +36,19 @@ describe('UsersController', () => {
       validateUser: jest.fn(),
     } as unknown as jest.Mocked<AuthService>
 
+    jwtService = {
+      sign: jest.fn().mockReturnValue('jwt-token'),
+    } as unknown as jest.Mocked<JwtService>
+
+    configService = {
+      get: jest.fn().mockImplementation(key => {
+        if (key === 'NODE_ENV') {
+          return 'test'
+        }
+        return 'test-value'
+      }),
+    } as unknown as jest.Mocked<ConfigService>
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [
@@ -42,6 +59,14 @@ describe('UsersController', () => {
         {
           provide: AuthService,
           useValue: authService,
+        },
+        {
+          provide: JwtService,
+          useValue: jwtService,
+        },
+        {
+          provide: ConfigService,
+          useValue: configService,
         },
       ],
     }).compile()
@@ -62,10 +87,16 @@ describe('UsersController', () => {
 
       usersService.registerUser.mockResolvedValue(mockUser)
 
-      const mockResponse = {} as Response
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response
+
       const result = await controller.register(createUserDto, mockResponse)
-      expect(result).toEqual(mockUser)
+
       expect(usersService.registerUser).toHaveBeenCalledWith(createUserDto)
+      expect(jwtService.sign).toHaveBeenCalled()
+      expect(mockResponse.cookie).toHaveBeenCalled()
+      expect(result).toEqual({ id: mockUser.id, email: mockUser.email })
     })
   })
 
@@ -78,10 +109,20 @@ describe('UsersController', () => {
 
       authService.validateUser.mockResolvedValue(mockUser)
 
-      const mockResponse = {} as Response
+      const mockResponse = {
+        cookie: jest.fn(),
+      } as unknown as Response
+
       const result = await controller.login(loginDto, mockResponse)
-      expect(result).toEqual(mockUser)
+
       expect(authService.validateUser).toHaveBeenCalledWith(loginDto.email, loginDto.password)
+      expect(jwtService.sign).toHaveBeenCalled()
+      expect(mockResponse.cookie).toHaveBeenCalled()
+      expect(result).toEqual({
+        id: mockUser.id,
+        email: mockUser.email,
+        displayName: mockUser.displayName,
+      })
     })
 
     it('should throw UnauthorizedException for invalid credentials', async () => {

@@ -2,14 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { VaultService } from './vault.service'
 import { ethers } from 'ethers'
 
-// Mocking node-vault
-jest.mock('node-vault', () => {
-  return () => ({
-    write: jest.fn().mockResolvedValue({}),
-    read: jest.fn().mockResolvedValue({ data: { privateKey: 'mock-private-key' } }),
-  })
-})
-
 jest.mock('ethers')
 
 describe('VaultService', () => {
@@ -50,15 +42,22 @@ describe('VaultService', () => {
   describe('storeSecret', () => {
     it('should store a secret successfully', async () => {
       const result = await service.storeSecret('test/path', { privateKey: 'secret-key' })
-      expect(result).toBeDefined()
+      expect(result).toEqual({ success: true })
     })
   })
 
   describe('getSecret', () => {
-    it('should retrieve a secret successfully', async () => {
-      const result = await service.getSecret('test/path')
+    it('should return null when secret does not exist', async () => {
+      const result = await service.getSecret('nonexistent/path')
       expect(result).toEqual(null)
-      expect(vaultClient.read).toHaveBeenCalledWith('test/path')
+    })
+
+    it('should retrieve a stored secret successfully', async () => {
+      const testSecret = { privateKey: 'test-private-key' }
+      await service.storeSecret('test/path', testSecret)
+
+      const result = await service.getSecret('test/path')
+      expect(result).toEqual(testSecret)
     })
   })
 })
