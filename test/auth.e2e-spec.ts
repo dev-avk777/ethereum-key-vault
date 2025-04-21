@@ -18,7 +18,7 @@ describe('Auth (e2e)', () => {
     app = moduleFixture.createNestApplication()
     jwtService = moduleFixture.get<JwtService>(JwtService)
 
-    // Мокируем метод validate в GoogleStrategy
+    // Mock the validate method in GoogleStrategy
     jest
       .spyOn(GoogleStrategy.prototype, 'validate')
       .mockImplementation(
@@ -30,7 +30,7 @@ describe('Auth (e2e)', () => {
             displayName: 'Test User',
             publicKey: '0x123abc',
           }
-          done(null, mockUser) // Вызываем done с пользователем
+          done(null, mockUser) // Call done with the user
         }
       )
 
@@ -45,9 +45,9 @@ describe('Auth (e2e)', () => {
     it('should redirect to Google OAuth', () => {
       return request(app.getHttpServer())
         .get('/auth/google')
-        .expect(302) // Проверяем редирект
+        .expect(302) // Check for redirect
         .expect(res => {
-          // Проверяем, что редирект содержит google.com
+          // Check that the redirect contains google.com
           expect(res.headers.location).toContain('accounts.google.com')
         })
     })
@@ -55,19 +55,19 @@ describe('Auth (e2e)', () => {
 
   describe('/auth/google/callback (GET)', () => {
     it('should redirect to frontend with token', async () => {
-      // Мокируем JwtService.sign, чтобы вернуть фиксированный токен
+      // Mock JwtService.sign to return a fixed token
       const mockToken = 'mock-jwt-token'
       jest.spyOn(jwtService, 'sign').mockReturnValue(mockToken)
 
-      // Делаем запрос к callback endpoint
-      const response = await request(app.getHttpServer()).get('/auth/google/callback').expect(302) // Проверяем редирект
+      // Make a request to the callback endpoint
+      const response = await request(app.getHttpServer()).get('/auth/google/callback').expect(302) // Check for redirect
 
-      // Проверяем, что ответ содержит редирект на frontend с токеном
+      // Check that the response contains a redirect to frontend with token
       expect(response.headers.location).toContain('authToken=' + mockToken)
     })
 
     it('should handle errors during oauth callback', async () => {
-      // Мокируем ошибку в GoogleStrategy
+      // Mock an error in GoogleStrategy
       jest
         .spyOn(GoogleStrategy.prototype, 'validate')
         .mockImplementation(
@@ -76,17 +76,17 @@ describe('Auth (e2e)', () => {
           }
         )
 
-      // Делаем запрос к callback endpoint
-      const response = await request(app.getHttpServer()).get('/auth/google/callback').expect(302) // Проверяем редирект
+      // Make a request to the callback endpoint
+      const response = await request(app.getHttpServer()).get('/auth/google/callback').expect(302) // Check for redirect
 
-      // Проверяем, что ответ содержит редирект на страницу ошибки
+      // Check that the response contains a redirect to the error page
       expect(response.headers.location).toContain('auth-error')
     })
   })
 
   describe('JWT Generation', () => {
     it('should generate valid JWT token', () => {
-      // Создаем тестовые данные пользователя
+      // Create test user data
       const userData = {
         id: '123',
         email: 'test@example.com',
@@ -94,13 +94,13 @@ describe('Auth (e2e)', () => {
         displayName: 'Test User',
       }
 
-      // Генерируем токен с тестовыми данными
+      // Generate token with test data
       const token = jwtService.sign(userData)
 
-      // Проверяем, что токен можно верифицировать
+      // Check that the token can be verified
       const decoded = jwtService.verify(token)
 
-      // Проверяем, что данные сохранились корректно
+      // Check that the data was saved correctly
       expect(decoded.id).toBe(userData.id)
       expect(decoded.email).toBe(userData.email)
       expect(decoded.googleId).toBe(userData.googleId)
@@ -114,7 +114,7 @@ describe('Auth (e2e)', () => {
     })
 
     it('should return user info for authorized requests', async () => {
-      // Создаем тестовые данные пользователя
+      // Create test user data
       const userData = {
         id: '123',
         email: 'test@example.com',
@@ -122,16 +122,16 @@ describe('Auth (e2e)', () => {
         displayName: 'Test User',
       }
 
-      // Генерируем токен для авторизации
+      // Generate token for authorization
       const token = jwtService.sign(userData)
 
-      // Делаем запрос с авторизационным токеном
+      // Make request with authorization token
       return request(app.getHttpServer())
         .get('/auth/user-info')
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect(res => {
-          // Проверяем, что ответ содержит данные пользователя
+          // Check that the response contains user data
           expect(res.body.id).toBe(userData.id)
           expect(res.body.email).toBe(userData.email)
         })

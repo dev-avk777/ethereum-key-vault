@@ -1,20 +1,20 @@
 /**
- * Data Transfer Object для регистрации пользователя.
- * Здесь ожидаются только email и пароль, которые предоставляются клиентом.
+ * Data Transfer Object for user registration.
+ * Here we expect only email and password that are provided by the client.
  */
 import { IsEmail, IsString, MinLength } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export class CreateUserDto {
   @ApiProperty({
-    description: 'Email пользователя',
+    description: 'User email',
     example: 'user@example.com',
   })
   @IsEmail()
   email: string
 
   @ApiProperty({
-    description: 'Пароль пользователя (минимум 6 символов)',
+    description: 'User password (minimum 6 characters)',
     example: 'securePassword123',
   })
   @IsString()

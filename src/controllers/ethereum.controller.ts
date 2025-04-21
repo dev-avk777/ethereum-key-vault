@@ -13,8 +13,8 @@ interface JwtUser {
 }
 
 /**
- * EthereumController обрабатывает запросы, связанные с Ethereum-ключами пользователей.
- * Предоставляет эндпоинт для получения публичного ключа (адреса Ethereum) пользователя.
+ * EthereumController handles requests related to users' Ethereum keys.
+ * Provides an endpoint to retrieve the public key (Ethereum address) of a user.
  */
 @ApiTags('ethereum')
 @Controller('ethereum')
@@ -22,10 +22,10 @@ export class EthereumController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Получает публичный ключ (адрес Ethereum) текущего аутентифицированного пользователя.
-   * Требует JWT-аутентификации.
+   * Gets the public key (Ethereum address) of the currently authenticated user.
+   * Requires JWT authentication.
    */
-  @ApiOperation({ summary: 'Получить Ethereum-ключи пользователя' })
+  @ApiOperation({ summary: 'Get Ethereum keys of the user' })
   @ApiBearerAuth()
   @Get('keys')
   @UseGuards(AuthGuard('jwt'))
@@ -33,11 +33,11 @@ export class EthereumController {
     const user = req.user as JwtUser
     let publicKey: string
 
-    // Если публичный ключ есть в JWT токене, используем его
+    // If public key exists in JWT token, use it
     if (user.publicKey) {
       publicKey = user.publicKey
     } else {
-      // Если публичного ключа нет в JWT токене, получаем его из базы данных
+      // If public key doesn't exist in JWT token, get it from database
       const userFromDb = await this.usersService.findById(user.id)
 
       if (!userFromDb || !userFromDb.publicKey) {
@@ -47,13 +47,13 @@ export class EthereumController {
       publicKey = userFromDb.publicKey
     }
 
-    // Возвращаем массив с одним объектом, чтобы фронтенд мог использовать методы массива
+    // Return an array with one object so frontend can use array methods
     return [
       {
-        id: '1', // Используем фиксированный id, так как у нас только один ключ на пользователя
+        id: '1', // Use fixed id since we only have one key per user
         publicKey: publicKey,
-        name: 'Primary Key', // Добавляем имя по умолчанию
-        createdAt: new Date().toISOString(), // Добавляем текущую дату как дату создания
+        name: 'Primary Key', // Add default name
+        createdAt: new Date().toISOString(), // Add current date as creation date
       },
     ]
   }

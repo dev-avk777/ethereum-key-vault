@@ -1,24 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common'
-import { ethers } from 'ethers'
+import { Injectable } from '@nestjs/common'
+import { Wallet } from 'ethers'
 
 /**
- * Упрощенная версия VaultService для тестирования без подключения к HashiCorp Vault.
+ * Simplified version of VaultService for testing without connecting to HashiCorp Vault.
  */
 @Injectable()
 export class VaultService {
-  private readonly logger = new Logger(VaultService.name)
-  private readonly memoryStore: Map<string, any> = new Map()
+  // In-memory store for testing purposes
+  private memoryStore: Record<string, any> = {}
 
-  constructor() {
-    this.logger.warn('Using simplified VaultService - do not use in production!')
-  }
+  constructor() {}
 
   /**
-   * Генерирует новую пару ключей Ethereum.
-   * @returns Объект с публичным и приватным ключом.
+   * Generates a new Ethereum key pair.
+   * @returns Object with public and private key.
    */
   async generateKeyPair() {
-    const wallet = ethers.Wallet.createRandom()
+    const wallet = Wallet.createRandom()
     return {
       publicKey: wallet.address,
       privateKey: wallet.privateKey,
@@ -26,27 +24,20 @@ export class VaultService {
   }
 
   /**
-   * Сохраняет секрет в памяти (заглушка).
-   * @param path - Путь для сохранения секрета.
-   * @param secret - Объект с данными секрета.
+   * Stores a secret in memory (stub).
+   * @param path - Path to store the secret.
+   * @param secret - Object with secret data.
    */
-  async storeSecret(path: string, secret: any) {
-    this.memoryStore.set(path, secret)
-    this.logger.log(`Stored secret at path: ${path} (mock implementation)`)
-    return { data: {} }
+  async storeSecret(path: string, secret: Record<string, any>) {
+    this.memoryStore[path] = secret
+    return { success: true }
   }
 
   /**
-   * Получает секрет из памяти (заглушка).
-   * @param path - Путь для получения секрета.
+   * Retrieves a secret from memory (stub).
+   * @param path - Path to retrieve the secret.
    */
   async getSecret(path: string) {
-    const secret = this.memoryStore.get(path)
-    if (!secret) {
-      this.logger.warn(`Secret not found at path: ${path} (mock implementation)`)
-      return { privateKey: 'mock-private-key' }
-    }
-    this.logger.log(`Retrieved secret from path: ${path} (mock implementation)`)
-    return secret
+    return this.memoryStore[path] || null
   }
 }

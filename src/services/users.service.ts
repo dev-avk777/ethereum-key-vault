@@ -7,14 +7,14 @@ import { VaultService } from './vault.service'
 import { Wallet } from 'ethers'
 import * as argon2 from 'argon2'
 
-// Интерфейс для данных пользователя, получаемых от Google
+// Interface for user data received from Google
 interface GoogleUserData {
   googleId: string
   email: string
   displayName: string
 }
 
-// Интерфейс для типизации пользователя, возвращаемого UsersService
+// Interface for typed user returned by UsersService
 interface AuthenticatedUser {
   id: string
   email: string
@@ -24,8 +24,8 @@ interface AuthenticatedUser {
 }
 
 /**
- * UsersService содержит логику по регистрации пользователя, генерации Ethereum кошелька,
- * сохранению приватного ключа в Vault и публичного ключа в базе данных.
+ * UsersService contains logic for user registration, Ethereum wallet generation,
+ * storing private keys in Vault and public keys in the database.
  */
 @Injectable()
 export class UsersService {
@@ -38,25 +38,25 @@ export class UsersService {
   ) {}
 
   /**
-   * Регистрирует нового пользователя:
-   * 1. Хеширует пароль с помощью argon2.
-   * 2. Генерирует новый Ethereum-кошелёк.
-   * 3. Сохраняет приватный ключ в Vault.
-   * 4. Сохраняет пользователя с email, хешированным паролем и публичным ключом в PostgreSQL.
+   * Registers a new user:
+   * 1. Hashes the password using argon2.
+   * 2. Generates a new Ethereum wallet.
+   * 3. Stores the private key in Vault.
+   * 4. Saves the user with email, hashed password, and public key in PostgreSQL.
    *
-   * @param createUserDto - Данные для регистрации (email и пароль).
-   * @returns Объект с данными пользователя (без пароля).
+   * @param createUserDto - Registration data (email and password).
+   * @returns Object with user data (without password).
    */
   async registerUser(
     createUserDto: CreateUserDto
   ): Promise<{ id: string; email: string; publicKey: string }> {
     const { email, password } = createUserDto
 
-    // Хеширование пароля с использованием argon2 для безопасного хранения
+    // Password hashing using argon2 for secure storage
     const hashedPassword = await argon2.hash(password)
     this.logger.debug(`[Wallet] Generating Ethereum wallet for ${email}`)
 
-    // Генерация нового Ethereum-кошелька
+    // Generate a new Ethereum wallet
     const wallet = Wallet.createRandom()
     const privateKey = wallet.privateKey
     const publicKey = wallet.address
@@ -65,11 +65,11 @@ export class UsersService {
       this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
     }
     try {
-      // Сохранение приватного ключа в Vault
+      // Store private key in Vault
       const vaultPath = `secret/ethereum/${email}`
       await this.vaultService.storeSecret(vaultPath, { privateKey })
 
-      // Создание экземпляра пользователя и сохранение в базе данных PostgreSQL
+      // Create user instance and save to PostgreSQL database
       const user = this.userRepository.create({
         email,
         password: hashedPassword,
@@ -79,7 +79,7 @@ export class UsersService {
 
       this.logger.log(`Registered user ${email} with public Ethereum address ${publicKey}`)
 
-      // Возвращаем данные пользователя (без пароля)
+      // Return user data (without password)
       return { id: user.id, email: user.email, publicKey: user.publicKey }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -89,29 +89,29 @@ export class UsersService {
   }
 
   /**
-   * Находит пользователя по email.
-   * @param email - Email пользователя.
-   * @returns Объект пользователя или null, если не найден.
+   * Finds a user by email.
+   * @param email - User's email.
+   * @returns User object or null if not found.
    */
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } })
   }
 
   /**
-   * Находит пользователя по ID.
-   * @param id - ID пользователя.
-   * @returns Объект пользователя или null, если не найден.
+   * Finds a user by ID.
+   * @param id - User's ID.
+   * @returns User object or null if not found.
    */
   async findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } })
   }
 
   /**
-   * Валидирует пользователя по email и паролю.
-   * Сравнивает предоставленный пароль с хешированным в базе данных.
-   * @param email - Email пользователя.
-   * @param password - Пароль для проверки.
-   * @returns Объект пользователя, если проверка пройдена, или undefined в противном случае.
+   * Validates a user by email and password.
+   * Compares the provided password with the hashed one in the database.
+   * @param email - User's email.
+   * @param password - Password to verify.
+   * @returns User object if verification passes, or undefined otherwise.
    */
   async validateUser(email: string, password: string): Promise<User | undefined> {
     const user = await this.findByEmail(email)
@@ -122,10 +122,10 @@ export class UsersService {
   }
 
   /**
-   * Находит пользователя по Google ID или создает нового пользователя.
-   * Для новых пользователей генерируется Ethereum-кошелёк.
-   * @param userData - Данные пользователя из Google OAuth
-   * @returns Объект пользователя
+   * Finds a user by Google ID or creates a new user.
+   * For new users, an Ethereum wallet is generated.
+   * @param userData - User data from Google OAuth
+   * @returns User object
    */
   async findOrCreateFromGoogle(userData: GoogleUserData): Promise<AuthenticatedUser> {
     if (!userData.googleId || !userData.email) {
@@ -134,22 +134,22 @@ export class UsersService {
     }
 
     try {
-      // Ищем пользователя по Google ID
+      // Look for user by Google ID
       let user = await this.userRepository.findOne({
         where: { googleId: userData.googleId },
       })
 
-      // Если пользователь не найден по Google ID, проверяем по email
+      // If user not found by Google ID, check by email
       if (!user && userData.email) {
         user = await this.findByEmail(userData.email)
       }
 
-      // Если пользователь не найден, создаем нового
+      // If user not found, create a new one
       if (!user) {
         this.logger.log(`Creating new user from Google OAuth: ${userData.email}`)
         this.logger.debug(`[Wallet] Generating Ethereum wallet for ${userData.email}`)
 
-        // Генерируем Ethereum кошелёк
+        // Generate Ethereum wallet
         const wallet = Wallet.createRandom()
         const privateKey = wallet.privateKey
         const publicKey = wallet.address
@@ -158,11 +158,11 @@ export class UsersService {
           this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
         }
         try {
-          // Сохраняем приватный ключ в Vault
+          // Store private key in Vault
           const vaultPath = `secret/ethereum/oauth_${userData.email}`
           await this.vaultService.storeSecret(vaultPath, { privateKey })
 
-          // Создаем нового пользователя
+          // Create a new user
           user = this.userRepository.create({
             email: userData.email,
             displayName: userData.displayName,
@@ -182,15 +182,15 @@ export class UsersService {
           throw new InternalServerErrorException('Failed to create user account')
         }
       } else if (!user.googleId) {
-        // Если пользователь найден по email, но у него нет Google ID,
-        // обновляем его данные
+        // If user found by email but has no Google ID,
+        // update user data
         this.logger.log(`Linking existing user ${userData.email} with Google account`)
         user.googleId = userData.googleId
         user.displayName = userData.displayName
         await this.userRepository.save(user)
       }
 
-      // Преобразуем User в AuthenticatedUser
+      // Convert User to AuthenticatedUser
       return {
         id: user.id,
         email: user.email,

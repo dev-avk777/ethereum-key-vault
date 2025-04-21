@@ -4,25 +4,32 @@ import { User } from '../entities/user.entity'
 import * as argon2 from 'argon2'
 
 /**
- * AuthService служит для проверки учетных данных пользователя.
- * Он использует UsersService для валидации email и пароля.
+ * AuthService is used to verify user credentials.
+ * It uses UsersService to validate email and password.
  */
 @Injectable()
 export class AuthService {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Валидирует пользователя по email и паролю.
-   * @param email - Email пользователя.
-   * @param password - Пароль пользователя.
-   * @returns Объект пользователя, если учетные данные корректны, или undefined.
+   * Validates a user by email and password.
+   * @param email - User's email.
+   * @param password - User's password.
+   * @returns User object if credentials are valid, or undefined.
    */
   async validateUser(email: string, password: string): Promise<User | undefined> {
+    // Find user by email
     const user = await this.usersService.findByEmail(email)
-    if (!user || user.password === null) {
+    if (!user) {
       return undefined
     }
 
+    // Check if user has password (might not if registered with OAuth)
+    if (!user.password) {
+      return undefined
+    }
+
+    // Verify password using argon2
     const isPasswordValid = await argon2.verify(user.password, password)
     if (!isPasswordValid) {
       return undefined

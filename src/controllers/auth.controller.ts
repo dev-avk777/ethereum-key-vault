@@ -31,14 +31,14 @@ export class AuthController {
     private readonly configService: ConfigService
   ) {}
 
-  @ApiOperation({ summary: 'Начать авторизацию через Google' })
+  @ApiOperation({ summary: 'Start Google authentication' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
   googleAuth(): void {
     this.logger.log('→ [Auth] GET /auth/google invoked; redirecting to Google')
   }
 
-  @ApiOperation({ summary: 'Callback от Google OAuth' })
+  @ApiOperation({ summary: 'Callback from Google OAuth' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   googleAuthCallback(@Req() req: Request, @Res({ passthrough: true }) res: Response): void {
@@ -88,7 +88,7 @@ export class AuthController {
     res.redirect(redirectUrl)
   }
 
-  @ApiOperation({ summary: 'Получить данные авторизованного пользователя' })
+  @ApiOperation({ summary: 'Get authenticated user data' })
   @ApiBearerAuth()
   @Get('user-info')
   @UseGuards(AuthGuard('jwt'))
@@ -98,7 +98,7 @@ export class AuthController {
     return req.user
   }
 
-  @ApiOperation({ summary: 'Выйти (удалить cookie)' })
+  @ApiOperation({ summary: 'Logout (delete cookie)' })
   @Get('logout')
   logout(@Res({ passthrough: true }) res: Response) {
     this.logger.log('[Auth] GET /auth/logout invoked; clearing authToken cookie')

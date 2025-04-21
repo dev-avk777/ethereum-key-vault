@@ -1,8 +1,8 @@
 import { VaultOptions } from 'node-vault'
 
 /**
- * Конфигурация для подключения к HashiCorp Vault.
- * Здесь указываются параметры подключения к Vault серверу.
+ * Configuration for connecting to HashiCorp Vault.
+ * This specifies the connection parameters to the Vault server.
  */
 export const vaultConfig: VaultOptions = {
   endpoint: process.env.VAULT_ENDPOINT || 'http://127.0.0.1:8200',

@@ -4,7 +4,7 @@ import { Strategy, Profile, StrategyOptions } from 'passport-google-oauth20'
 import { ConfigService } from '@nestjs/config'
 import { UsersService } from '../services/users.service'
 
-// Пользователь, который попадёт в req.user
+// User that will be placed in req.user
 interface AuthenticatedUser {
   id: string
   email: string
@@ -50,18 +50,18 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       throw new UnauthorizedException('Invalid Google profile')
     }
 
-    // Берём email и первоначальное displayName из профиля
+    // Take email and initial displayName from the profile
     const email = emails[0].value
     const initialName = displayName ?? email
 
-    // findOrCreateFromGoogle может возвращать user.googleId и user.displayName как string|null
+    // findOrCreateFromGoogle may return user.googleId and user.displayName as string|null
     const user = await this.usersService.findOrCreateFromGoogle({
       googleId: id,
       email,
       displayName: initialName,
     })
 
-    // Приводим оба поля к string — либо из БД, либо из исходных значений
+    // Convert both fields to string - either from DB or from initial values
     const finalGoogleId = user.googleId ?? id
     const finalDisplayName = user.displayName ?? initialName
 

@@ -12,15 +12,15 @@ export const dataSourceOptions: DataSourceOptions = {
   password: process.env.POSTGRES_PASSWORD || 'postgres',
   database: process.env.POSTGRES_DB || 'ethereum_key_vault',
 
-  // Нотация с glob, чтобы искало *.ts в src и *.js в dist
+  // Glob notation to find *.ts in src and *.js in dist
   entities: [path.join(__dirname, '../entities/*{.ts,.js}')],
 
-  // Здесь обратите внимание: __dirname будет
-  //  - src/config  при запуске через ts-node
-  //  - dist/src/config при запуске через node dist/main.js
+  // Note that __dirname will be
+  //  - src/config when running via ts-node
+  //  - dist/src/config when running via node dist/main.js
   migrations: [path.join(__dirname, '../migrations/*{.ts,.js}')],
 
-  // CLI миграций сам применяет только migrations, без синхронизации
+  // Migration CLI applies only migrations without synchronization
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',
 }

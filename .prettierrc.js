@@ -10,10 +10,10 @@ module.exports = {
       files: '{**/*,*}.{js,ts,json,md}',
       excludeFiles: [
         '**/node_modules/**',
-        '**/dist/**', // Основная папка сборки в Nest.js
+        '**/dist/**', // Main build folder in Nest.js
         '**/build/**',
         '**/coverage/**',
-        '**/*.d.ts', // Оставил исключение для деклараций TypeScript
+        '**/*.d.ts', // Left exclusion for TypeScript declarations
       ],
       options: { requirePragma: false },
     },

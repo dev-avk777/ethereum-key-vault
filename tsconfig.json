@@ -21,6 +21,6 @@
     "strict": true,
     "strictPropertyInitialization": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "eslint.config.mjs"],
   "exclude": ["src/**/*.spec.ts", "test/**/*.ts", "node_modules", "dist"]
 }

@@ -4,7 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt'
 import { ConfigService } from '@nestjs/config'
 import { Request } from 'express'
 
-// Определяем интерфейс для JWT payload
+// Define interface for JWT payload
 interface JwtPayload {
   id: string
   email: string
@@ -24,11 +24,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     super({
       jwtFromRequest: (req: Request) => {
-        // Пытаемся извлечь токен из куки authToken
+        // Try to extract token from authToken cookie
         if (req && req.cookies && req.cookies.authToken) {
           return req.cookies.authToken
         }
-        // Если в куках нет, то пробуем взять из заголовка Authorization
+        // If not in cookies, try to get from Authorization header
         return ExtractJwt.fromAuthHeaderAsBearerToken()(req)
       },
       ignoreExpiration: false,
@@ -37,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload): Promise<JwtPayload> {
-    // Возвращаем объект с полями из JWT токена
+    // Return object with fields from JWT token
     return {
       id: payload.id,
       email: payload.email,

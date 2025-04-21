@@ -10,11 +10,11 @@ import { UsersModule } from './users.module'
 import { AuthController } from '../controllers/auth.controller'
 
 /**
- * AuthModule объединяет все компоненты, связанные с аутентификацией:
- * - Стратегии аутентификации (локальная и Google OAuth)
- * - Сервисы аутентификации
- * - Контроллер для обработки запросов
- * - Настройки JWT для токенов
+ * AuthModule combines all authentication-related components:
+ * - Authentication strategies (local and Google OAuth)
+ * - Authentication services
+ * - Controller for handling requests
+ * - JWT settings for tokens
  */
 @Module({
   imports: [
@@ -23,9 +23,9 @@ import { AuthController } from '../controllers/auth.controller'
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1h' },
+        signOptions: { expiresIn: '1d' },
       }),
     }),
   ],

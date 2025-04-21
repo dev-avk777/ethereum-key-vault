@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { VaultService } from './vault.service'
 import { ethers } from 'ethers'
 
-// Мокаем node-vault
+// Mocking node-vault
 jest.mock('node-vault', () => {
   return () => ({
     write: jest.fn().mockResolvedValue({}),

@@ -5,7 +5,7 @@ import globals from 'globals'
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'build/**'],
+    ignores: ['dist/**', 'node_modules/**', 'build/**', '.prettierrc.js'],
   },
   {
     files: ['src/**/*.{js,ts}', '!src/**/*.spec.ts', '!test/**/*.{js,ts}'],

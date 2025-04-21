@@ -1,57 +1,57 @@
-# Используем официальный образ Node.js
+# Use official Node.js image
 FROM node:20-alpine AS builder
 
-# Устанавливаем рабочую директорию
+# Set working directory
 WORKDIR /app
 
-# Передаём NODE_ENV на этапе сборки
+# Pass NODE_ENV at build stage
 ARG NODE_ENV=development
 ENV NODE_ENV=$NODE_ENV
 
-# Копируем package.json и pnpm-lock.yaml
+# Copy package.json and pnpm-lock.yaml
 COPY package.json pnpm-lock.yaml ./
 
-# Устанавливаем pnpm
+# Install pnpm
 RUN npm install -g pnpm
 
-# Устанавливаем зависимости
+# Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Копируем остальной код
+# Copy the rest of the code
 COPY . .
 
-# Компилируем TypeScript
+# Compile TypeScript
 RUN pnpm build
 
-# Создаём продакшен-образ
+# Create production image
 FROM node:20-alpine
 
-# Устанавливаем curl
+# Install curl
 RUN apk add --no-cache curl
 
 WORKDIR /app
 
-# Передаём NODE_ENV на этапе выполнения
+# Pass NODE_ENV at runtime
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV
 
-# Копируем package.json и pnpm-lock.yaml
+# Copy package.json and pnpm-lock.yaml
 COPY package.json pnpm-lock.yaml ./
 
-# Устанавливаем pnpm
+# Install pnpm
 RUN npm install -g pnpm
 
-# Проверяем, что pnpm установлен
+# Check that pnpm is installed
 RUN pnpm --version || { echo "pnpm not found"; exit 1; }
 
-# Устанавливаем только продакшен-зависимости
+# Install only production dependencies
 RUN pnpm install --prod --frozen-lockfile
 
-# Копируем скомпилированный код из builder
+# Copy compiled code from builder
 COPY --from=builder /app/dist ./dist
 
-# Указываем порт
+# Specify port
 EXPOSE 5000
 
-# Запускаем приложение
+# Run application
 CMD ["pnpm", "start:prod"]

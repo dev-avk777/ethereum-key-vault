@@ -8,7 +8,7 @@ import * as argon2 from 'argon2'
 import { Wallet } from 'ethers'
 import { CreateUserDto } from '../dto/create-user.dto'
 
-// Мокаем внешние зависимости
+// Mock external dependencies
 jest.mock('argon2', () => ({
   hash: jest.fn().mockResolvedValue('hashedPassword'),
   verify: jest.fn(),

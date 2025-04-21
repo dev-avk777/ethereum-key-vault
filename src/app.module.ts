@@ -8,16 +8,16 @@ import { EthereumController } from './controllers/ethereum.controller'
 
 @Module({
   imports: [
-    // Загружаем переменные окружения и делаем их доступными глобально
+    // Load environment variables and make them globally available
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env', // Явно указываем путь к .env файлу
+      envFilePath: '.env', // Explicitly specify path to .env file
     }),
-    // Подключаем базу данных с конфигурацией из database.config.ts
+    // Connect to database with configuration from database.config.ts
     TypeOrmModule.forRoot(databaseConfig),
-    // Подключаем модуль пользователей и аутентификации
+    // Connect users and authentication module
     UsersModule,
-    // Подключаем модуль аутентификации через Google OAuth
+    // Connect Google OAuth authentication module
     AuthModule,
   ],
   controllers: [EthereumController],
