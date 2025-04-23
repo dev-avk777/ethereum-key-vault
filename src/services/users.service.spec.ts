@@ -160,4 +160,24 @@ describe('UsersService', () => {
       expect(result).toBeUndefined()
     })
   })
+
+  describe('findById', () => {
+    it('should find user by ID', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser)
+
+      const result = await service.findById('123')
+
+      expect(result).toEqual(mockUser)
+      expect(userRepository.findOne).toHaveBeenCalledWith({ where: { id: '123' } })
+    })
+
+    it('should return null when user not found', async () => {
+      userRepository.findOne.mockResolvedValue(null)
+
+      const result = await service.findById('nonexistent-id')
+
+      expect(result).toBeNull()
+      expect(userRepository.findOne).toHaveBeenCalledWith({ where: { id: 'nonexistent-id' } })
+    })
+  })
 })
