@@ -1,10 +1,13 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Query,
   UnauthorizedException,
   Res,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common'
 import { Response } from 'express'
 import { UsersService } from '../services/users.service'
@@ -13,7 +16,9 @@ import { LoginUserDto } from '../dto/login-user.dto'
 import { CreateUserDto } from '../dto/create-user.dto'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(
@@ -72,5 +77,19 @@ export class UsersController {
     })
 
     return { id: user.id, email: user.email }
+  }
+
+  /**
+   * Gets the Substrate address for a user based on their email
+   */
+  @ApiOperation({ summary: 'Get Substrate address for a user' })
+  @ApiQuery({ name: 'email', required: true, description: 'User email' })
+  @Get('substrate-address')
+  async getSubstrateAddress(@Query('email') email: string) {
+    if (!email) {
+      throw new NotFoundException('Email is required')
+    }
+
+    return { substrateAddress: await this.usersService.getSubstrateAddress(email) }
   }
 }

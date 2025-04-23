@@ -6,6 +6,8 @@ import { CreateUserDto } from '../dto/create-user.dto'
 import { VaultService } from './vault.service'
 import { Wallet } from 'ethers'
 import * as argon2 from 'argon2'
+import { encodeAddress } from '@polkadot/util-crypto'
+import { EthereumService } from './ethereum.service'
 
 // Interface for user data received from Google
 interface GoogleUserData {
@@ -30,12 +32,21 @@ interface AuthenticatedUser {
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name)
+  private ethereumService: EthereumService | null = null // Will be set later to avoid circular dependency
 
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly vaultService: VaultService
   ) {}
+
+  /**
+   * Sets the Ethereum service to be used for sending transactions
+   * This is used to avoid circular dependencies
+   */
+  setEthereumService(service: EthereumService) {
+    this.ethereumService = service
+  }
 
   /**
    * Registers a new user:
@@ -129,6 +140,63 @@ export class UsersService {
       return user
     }
     return undefined
+  }
+
+  /**
+   * Converts an Ethereum address to a Substrate address with the Opal prefix (42)
+   * @param ethAddress Ethereum address
+   * @returns Substrate address
+   */
+  async convertToSubstrateAddress(ethAddress: string): Promise<string> {
+    if (!ethAddress || !ethAddress.startsWith('0x')) {
+      throw new Error('Invalid Ethereum address')
+    }
+
+    // Remove 0x prefix and convert to bytes
+    const ethAddressBytes = Buffer.from(ethAddress.slice(2), 'hex')
+
+    // Use polkadot-js/util-crypto to encode the address with prefix 42 (Opal network)
+    return encodeAddress(ethAddressBytes, 42)
+  }
+
+  /**
+   * Gets the Substrate address for a user
+   * @param email User's email
+   * @returns Substrate address
+   */
+  async getSubstrateAddress(email: string): Promise<string> {
+    const user = await this.findByEmail(email)
+    if (!user) {
+      throw new Error(`User ${email} not found`)
+    }
+    return this.convertToSubstrateAddress(user.publicKey)
+  }
+
+  /**
+   * Sends tokens from a user's wallet to another address
+   * @param email User's email
+   * @param toAddress Destination address
+   * @param amount Amount to send
+   * @param isOAuth Whether the user authenticated via OAuth
+   * @returns Transaction hash
+   */
+  async sendTokensFromUser(
+    email: string,
+    toAddress: string,
+    amount: string,
+    isOAuth: boolean = false
+  ) {
+    if (!this.ethereumService) {
+      throw new Error('EthereumService not initialized')
+    }
+
+    const user = await this.findByEmail(email)
+    if (!user) {
+      throw new Error(`User ${email} not found`)
+    }
+
+    const tx = await this.ethereumService.sendNative(email, toAddress, amount, isOAuth)
+    return { hash: tx.hash }
   }
 
   /**

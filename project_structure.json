@@ -1,7 +1,9 @@
 {
   "project_type": "NestJS",
   "root": "/mnt/c/Users/alex-dev/Documents/DEV/ethereum-key-vault",
-  "main_dirs": ["src"],
+  "main_dirs": [
+    "src"
+  ],
   "main_files": [
     "src/app.module.ts",
     "src/auth/google.strategy.ts",
@@ -11,18 +13,18 @@
     "src/config/database.config.ts",
     "src/config/datasource.ts",
     "src/config/vault.config.ts",
+    "src/controllers/auth.controller.spec.ts",
     "src/controllers/auth.controller.ts",
+    "src/controllers/ethereum.controller.spec.ts",
     "src/controllers/ethereum.controller.ts",
     "src/controllers/users.controller.spec.ts",
     "src/controllers/users.controller.ts",
+    "src/decorators/get-user.decorator.ts",
     "src/dto/create-user.dto.ts",
     "src/dto/login-user.dto.ts",
-    "src/entities/user.entity.ts",
-    "src/main.ts",
-    "src/migrations/1717082639999-InitialMigration.ts",
-    "src/migrations/1717082640000-AddGoogleFields.ts",
-    "src/modules/auth.module.ts",
-    "src/modules/users.module.ts"
+    "src/dto/transfer.dto.ts",
+    "src/entities/transaction.entity.ts",
+    "src/entities/user.entity.ts"
   ],
   "dependencies": [
     "@eslint/js",
@@ -36,6 +38,7 @@
     "@nestjs/swagger",
     "@nestjs/testing",
     "@nestjs/typeorm",
+    "@polkadot/util-crypto",
     "@types/express",
     "@types/jest",
     "@types/morgan",
@@ -82,6 +85,9 @@
   ],
   "docker": {
     "compose_file": "docker-compose.yml",
-    "services": ["postgres", "vault"]
+    "services": [
+      "postgres",
+      "vault"
+    ]
   }
 }

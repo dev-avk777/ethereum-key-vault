@@ -3,8 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { ConfigModule } from '@nestjs/config'
 import { UsersModule } from './modules/users.module'
 import { AuthModule } from './modules/auth.module'
+import { EthereumModule } from './modules/ethereum.module'
 import { databaseConfig } from './config/database.config'
-import { EthereumController } from './controllers/ethereum.controller'
 
 @Module({
   imports: [
@@ -19,8 +19,10 @@ import { EthereumController } from './controllers/ethereum.controller'
     UsersModule,
     // Connect Google OAuth authentication module
     AuthModule,
+    // Connect Ethereum module
+    EthereumModule,
   ],
-  controllers: [EthereumController],
+  controllers: [],
   providers: [],
 })
 export class AppModule {}
