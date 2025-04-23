@@ -19,6 +19,7 @@ export default [
         sourceType: 'module',
         project: './tsconfig.json',
         tsconfigRootDir: process.cwd(),
+        extraFileExtensions: ['json'],
       },
       globals: {
         ...globals.node,

@@ -75,6 +75,16 @@ export class UsersService {
         password: hashedPassword,
         publicKey,
       })
+
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.debug(
+          `[Users] Saving user to DB: ${JSON.stringify({
+            email: user.email,
+            publicKey: user.publicKey,
+          })}`
+        )
+      }
+
       await this.userRepository.save(user)
 
       this.logger.log(`Registered user ${email} with public Ethereum address ${publicKey}`)
