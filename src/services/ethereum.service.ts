@@ -63,6 +63,8 @@ export class EthereumService {
         throw new BadRequestException('Insufficient funds for this transaction')
       }
 
+      this.logger.log(`[Blockchain] Sending ${amount} from ${wallet.address} → ${to}`)
+
       const tx = await wallet.sendTransaction({
         to,
         value: parsedAmount,
@@ -73,7 +75,7 @@ export class EthereumService {
       // Wait for confirmation asynchronously
       tx.wait()
         .then(receipt => {
-          this.logger.log(`Transaction confirmed: ${tx.hash} (block: ${receipt.blockNumber})`)
+          this.logger.log(`Transaction confirmed: ${tx.hash} (block: ${receipt?.blockNumber})`)
         })
         .catch(error => {
           this.logger.error(`Transaction failed: ${tx.hash} - ${error.message}`)
@@ -92,20 +94,24 @@ export class EthereumService {
       this.logger.log(`Sent ${amount} tokens from ${wallet.address} to ${to}. Tx hash: ${tx.hash}`)
 
       return tx
-    } catch (error) {
+    } catch (error: unknown) {
       // Log the error
-      this.logger.error(`Failed to send transaction: ${error.message}`)
+      this.logger.error(
+        `Failed to send transaction: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      )
 
       // Re-throw BadRequestException or wrap other errors
       if (error instanceof BadRequestException) {
         throw error
       }
 
-      if (error.code === 'INSUFFICIENT_FUNDS') {
+      if (error instanceof Error && error.message.includes('INSUFFICIENT_FUNDS')) {
         throw new BadRequestException('Insufficient funds for this transaction')
       }
 
-      throw new Error(`Transaction failed: ${error.message}`)
+      throw new Error(
+        `Transaction failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      )
     }
   }
 
@@ -118,9 +124,13 @@ export class EthereumService {
     try {
       const balance = await this.provider.getBalance(address)
       return ethers.formatEther(balance)
-    } catch (error) {
-      this.logger.error(`Failed to get balance for ${address}: ${error.message}`)
-      throw new Error(`Failed to get balance: ${error.message}`)
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to get balance for ${address}: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      )
+      throw new Error(
+        `Failed to get balance: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      )
     }
   }
 }

@@ -14,29 +14,37 @@ async function bootstrap() {
   // Handle cookies
   app.use(cookieParser())
 
-  // CORS: allow only trusted sources
+  // CORS: allow only trusted sources, dedupe origins
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3007'
+  const allowed = [
+    'http://localhost:3000',
+    'http://localhost:3007',
+    'http://localhost:5173',
+    frontendUrl,
+  ]
+  const origins = Array.from(new Set(allowed)) // remove duplicates
   const corsOptions = {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3007',
-      'http://localhost:5173',
-      frontendUrl,
-    ],
+    origin: origins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }
   app.enableCors(corsOptions)
 
-  // Log allowed origins
+  // Log bootstrap info
   const logger = new Logger('Bootstrap')
-  logger.log(`Allowed CORS origins: ${corsOptions.origin.join(', ')}`)
+  logger.log(`Running in ${process.env.NODE_ENV || 'development'} mode`)
+  logger.log(`Allowed CORS origins: ${origins.join(', ')}`)
 
-  // Global DTO validation
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
+  // Global DTO validation and transformation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    })
+  )
 
-  // Swagger
+  // Swagger setup
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Ethereum Key Vault API')
     .setDescription('API for user registration and key management')
