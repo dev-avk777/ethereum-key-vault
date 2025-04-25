@@ -97,7 +97,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Get authenticated user data',
     description:
-      'Retrieves detailed user information using the user ID from the JWT token. The endpoint requires authentication and extracts the user ID from the token to fetch complete user data from the database.',
+      'Retrieves detailed user information using the user ID from the JWT token. The endpoint requires authentication and extracts the user ID from the token to fetch complete user data from the database. Ensure to send the authToken cookie with the request.',
   })
   @ApiResponse({
     status: 200,
