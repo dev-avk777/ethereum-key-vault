@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common'
+import { Injectable, Logger, InternalServerErrorException, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { User } from '../entities/user.entity'
@@ -149,14 +149,27 @@ export class UsersService {
    */
   async convertToSubstrateAddress(ethAddress: string): Promise<string> {
     if (!ethAddress || !ethAddress.startsWith('0x')) {
-      throw new Error('Invalid Ethereum address')
+      throw new InternalServerErrorException('Invalid Ethereum address')
     }
 
-    // Remove 0x prefix and convert to bytes
-    const ethAddressBytes = Buffer.from(ethAddress.slice(2), 'hex')
+    try {
+      // Remove 0x prefix and convert to bytes
+      const ethAddressBytes = Buffer.from(ethAddress.slice(2), 'hex')
 
-    // Use polkadot-js/util-crypto to encode the address with prefix 42 (Opal network)
-    return encodeAddress(ethAddressBytes, 42)
+      // Ensure we have 32 bytes (pad with zeros if needed)
+      const paddedBytes = Buffer.alloc(32)
+      ethAddressBytes.copy(paddedBytes, paddedBytes.length - ethAddressBytes.length)
+
+      // Use polkadot-js/util-crypto to encode the address with prefix 42 (Opal network)
+      return encodeAddress(paddedBytes, 42)
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to convert address ${ethAddress}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+      throw new InternalServerErrorException(
+        `Failed to convert address: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
   }
 
   /**
@@ -167,9 +180,18 @@ export class UsersService {
   async getSubstrateAddress(email: string): Promise<string> {
     const user = await this.findByEmail(email)
     if (!user) {
-      throw new Error(`User ${email} not found`)
+      throw new NotFoundException(`User ${email} not found`)
     }
-    return this.convertToSubstrateAddress(user.publicKey)
+    try {
+      return this.convertToSubstrateAddress(user.publicKey)
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to convert address for user ${email}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+      throw new InternalServerErrorException(
+        `Failed to convert Ethereum address to Substrate address: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
   }
 
   /**

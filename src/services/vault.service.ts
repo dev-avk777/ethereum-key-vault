@@ -34,9 +34,13 @@ export class RealVaultService implements IVaultService {
     this.logger.debug(`Storing secret at "${path}"`)
     try {
       return await this.vaultClient.write(path, secret)
-    } catch (error) {
-      this.logger.error(`Failed to store secret at "${path}": ${error.message}`)
-      throw error
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to store secret at "${path}": ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+      throw new Error(
+        `Failed to store secret: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 
@@ -49,9 +53,13 @@ export class RealVaultService implements IVaultService {
     try {
       const result = await this.vaultClient.read(path)
       return result?.data || null
-    } catch (error) {
-      this.logger.error(`Failed to retrieve secret at "${path}": ${error.message}`)
-      return null
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to retrieve secret at "${path}": ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+      throw new Error(
+        `Failed to get secret: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 }

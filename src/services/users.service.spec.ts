@@ -7,6 +7,7 @@ import { Repository } from 'typeorm'
 import * as argon2 from 'argon2'
 import { Wallet } from 'ethers'
 import { CreateUserDto } from '../dto/create-user.dto'
+import { NotFoundException, InternalServerErrorException } from '@nestjs/common'
 
 // Mock external dependencies
 jest.mock('argon2', () => ({
@@ -178,6 +179,52 @@ describe('UsersService', () => {
 
       expect(result).toBeNull()
       expect(userRepository.findOne).toHaveBeenCalledWith({ where: { id: 'nonexistent-id' } })
+    })
+  })
+
+  describe('getSubstrateAddress', () => {
+    it('should convert ethereum address to substrate address', async () => {
+      const mockUser = {
+        id: '123',
+        email: 'test@example.com',
+        publicKey: '0x1234567890123456789012345678901234567890',
+        password: 'hashedPassword',
+        googleId: null,
+        displayName: null,
+        createdAt: new Date(),
+      }
+
+      userRepository.findOne.mockResolvedValue(mockUser)
+
+      const result = await service.getSubstrateAddress('test@example.com')
+      expect(result).toBeDefined()
+      expect(result).toMatch(/^5[1-9A-HJ-NP-Za-km-z]{47}$/) // Substrate address format
+    })
+
+    it('should throw NotFoundException when user not found', async () => {
+      userRepository.findOne.mockResolvedValue(null)
+
+      await expect(service.getSubstrateAddress('nonexistent@example.com')).rejects.toThrow(
+        NotFoundException
+      )
+    })
+
+    it('should throw InternalServerErrorException when conversion fails', async () => {
+      const mockUser = {
+        id: '123',
+        email: 'test@example.com',
+        publicKey: 'invalid-eth-address',
+        password: 'hashedPassword',
+        googleId: null,
+        displayName: null,
+        createdAt: new Date(),
+      }
+
+      userRepository.findOne.mockResolvedValue(mockUser)
+
+      await expect(service.getSubstrateAddress('test@example.com')).rejects.toThrow(
+        InternalServerErrorException
+      )
     })
   })
 })
