@@ -22,57 +22,38 @@ export class EthereumService {
     this.logger.log(`Connected to blockchain via ${rpcUrl}`)
   }
 
-  /**
-   * Gets a user's wallet by retrieving their private key from Vault
-   * @param email - User's email
-   * @param isOAuth - Whether the user authenticated via OAuth
-   * @returns Ethers wallet instance with provider connected
-   */
-  async getUserWallet(email: string, isOAuth: boolean = false) {
-    const vaultPath = isOAuth ? `secret/ethereum/oauth_${email}` : `secret/ethereum/${email}`
+  async getUserWallet(email: string) {
+    const vaultPath = `secret/ethereum/${email}`
     const secret = await this.vaultService.getSecret(vaultPath)
-
     if (!secret || !secret.privateKey) {
-      throw new Error(`Private key not found for ${email}`)
+      this.logger.error(`Private key not found for ${email} at ${vaultPath}`)
+      throw new BadRequestException(`Private key not found for ${email}`)
     }
-
     return new ethers.Wallet(secret.privateKey, this.provider)
   }
 
-  /**
-   * Sends native tokens (ETH/UNQ) from a user's wallet
-   * @param email - User's email
-   * @param to - Destination address
-   * @param amount - Amount to send in Ether units
-   * @param isOAuth - Whether the user authenticated via OAuth
-   * @returns Transaction data
-   */
-  async sendNative(email: string, to: string, amount: string, isOAuth: boolean = false) {
+  async sendNative(email: string, to: string, amount: string, _isOAuth: boolean = false) {
     try {
-      // Validate amount
       const parsedAmount = ethers.parseEther(amount)
       if (parsedAmount <= 0n) {
+        this.logger.warn(`Invalid amount: ${amount}`)
         throw new BadRequestException('Amount must be greater than 0')
       }
-
-      const wallet = await this.getUserWallet(email, isOAuth)
-
-      // Check balance
+      const wallet = await this.getUserWallet(email)
+      if (!ethers.isAddress(to)) {
+        this.logger.warn(`Invalid destination address: ${to}`)
+        throw new BadRequestException('Invalid destination address')
+      }
       const balance = await this.provider.getBalance(wallet.address)
       if (balance < parsedAmount) {
+        this.logger.warn(
+          `Insufficient funds for ${email}: balance=${ethers.formatEther(balance)}, required=${amount}`
+        )
         throw new BadRequestException('Insufficient funds for this transaction')
       }
-
       this.logger.log(`[Blockchain] Sending ${amount} from ${wallet.address} → ${to}`)
-
-      const tx = await wallet.sendTransaction({
-        to,
-        value: parsedAmount,
-      })
-
+      const tx = await wallet.sendTransaction({ to, value: parsedAmount })
       this.logger.log(`Transaction sent: ${tx.hash} - waiting for confirmation...`)
-
-      // Wait for confirmation asynchronously
       tx.wait()
         .then(receipt => {
           this.logger.log(`Transaction confirmed: ${tx.hash} (block: ${receipt?.blockNumber})`)
@@ -80,55 +61,44 @@ export class EthereumService {
         .catch(error => {
           this.logger.error(`Transaction failed: ${tx.hash} - ${error.message}`)
         })
-
-      // Save transaction to database immediately
       const transaction = this.transactionRepository.create({
         userAddress: wallet.address,
         txHash: tx.hash,
         amount,
         toAddress: to,
       })
-
       await this.transactionRepository.save(transaction)
-
       this.logger.log(`Sent ${amount} tokens from ${wallet.address} to ${to}. Tx hash: ${tx.hash}`)
-
       return tx
     } catch (error: unknown) {
-      // Log the error
       this.logger.error(
-        `Failed to send transaction: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+        `Failed to send transaction for ${email}: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
       )
-
-      // Re-throw BadRequestException or wrap other errors
       if (error instanceof BadRequestException) {
         throw error
       }
-
       if (error instanceof Error && error.message.includes('INSUFFICIENT_FUNDS')) {
         throw new BadRequestException('Insufficient funds for this transaction')
       }
-
-      throw new Error(
+      throw new BadRequestException(
         `Transaction failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
       )
     }
   }
 
-  /**
-   * Gets the balance of an Ethereum address
-   * @param address - Ethereum address
-   * @returns Balance in Ether units
-   */
   async getBalance(address: string) {
     try {
+      if (!ethers.isAddress(address)) {
+        this.logger.warn(`Invalid address: ${address}`)
+        throw new BadRequestException('Invalid address')
+      }
       const balance = await this.provider.getBalance(address)
       return ethers.formatEther(balance)
     } catch (error: unknown) {
       this.logger.error(
         `Failed to get balance for ${address}: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
       )
-      throw new Error(
+      throw new BadRequestException(
         `Failed to get balance: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
       )
     }

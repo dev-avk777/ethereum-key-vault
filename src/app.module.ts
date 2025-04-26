@@ -5,6 +5,7 @@ import { UsersModule } from './modules/users.module'
 import { AuthModule } from './modules/auth.module'
 import { EthereumModule } from './modules/ethereum.module'
 import { databaseConfig } from './config/database.config'
+import { VaultConfigModule } from './config/vault.config'
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { databaseConfig } from './config/database.config'
       isGlobal: true,
       envFilePath: '.env', // Explicitly specify path to .env file
     }),
+    VaultConfigModule,
     // Connect to database with configuration from database.config.ts
     TypeOrmModule.forRoot(databaseConfig),
     // Connect users and authentication module
