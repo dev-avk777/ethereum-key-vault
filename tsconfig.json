@@ -22,5 +22,8 @@
     "strictPropertyInitialization": false
   },
   "include": ["src/**/*.ts", "eslint.config.mjs"],
-  "exclude": ["src/**/*.spec.ts", "test/**/*.ts", "node_modules", "dist"]
+  "exclude": ["src/**/*.spec.ts", "test/**/*.ts", "node_modules", "dist"],
+  "parserOptions": {
+    "extraFileExtensions": [".json"]
+  }
 }
