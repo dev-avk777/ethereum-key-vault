@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth.module'
 import { EthereumModule } from './modules/ethereum.module'
 import { databaseConfig } from './config/database.config'
 import { VaultConfigModule } from './config/vault.config'
+import { VaultServiceProvider } from './services/vault.service'
 
 @Module({
   imports: [
@@ -25,6 +26,6 @@ import { VaultConfigModule } from './config/vault.config'
     EthereumModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [VaultServiceProvider],
 })
 export class AppModule {}

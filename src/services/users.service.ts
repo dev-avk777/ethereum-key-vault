@@ -64,7 +64,7 @@ export class UsersService {
       this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
     }
     try {
-      const vaultPath = `secret/ethereum/${email}`
+      const vaultPath = `ethereum/${email}`
       await this.vaultService.storeSecret(vaultPath, { privateKey })
       const user = this.userRepository.create({
         email,
@@ -156,7 +156,7 @@ export class UsersService {
           this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
         }
         try {
-          const vaultPath = `secret/ethereum/${userData.email}`
+          const vaultPath = `ethereum/${userData.email}`
           await this.vaultService.storeSecret(vaultPath, { privateKey })
           user = this.userRepository.create({
             email: userData.email,

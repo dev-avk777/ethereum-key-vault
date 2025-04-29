@@ -91,7 +91,7 @@ describe('UsersService', () => {
 
       expect(argon2.hash).toHaveBeenCalledWith(dto.password)
       expect(Wallet.createRandom).toHaveBeenCalled()
-      expect(vaultService.storeSecret).toHaveBeenCalledWith('secret/ethereum/' + dto.email, {
+      expect(vaultService.storeSecret).toHaveBeenCalledWith('ethereum/' + dto.email, {
         privateKey: '0xprivateKey',
       })
       expect(userRepository.create).toHaveBeenCalledWith({
@@ -133,7 +133,7 @@ describe('UsersService', () => {
       userRepository.save.mockResolvedValueOnce(newUser)
 
       const result = await service.findOrCreateFromGoogle(googleData)
-      expect(vaultService.storeSecret).toHaveBeenCalledWith('secret/ethereum/' + googleData.email, {
+      expect(vaultService.storeSecret).toHaveBeenCalledWith('ethereum/' + googleData.email, {
         privateKey: '0xprivateKey',
       })
       expect(userRepository.create).toHaveBeenCalledWith({
