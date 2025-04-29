@@ -1,4 +1,3 @@
-```markdown
 # Ethereum Key Vault
 
 Secure system for storing and managing Ethereum private keys with Google OAuth authentication and HashiCorp Vault integration.
@@ -153,8 +152,34 @@ The Docker volume preserves your database, so you don’t need to re-run migrati
 - `pnpm run test:cov` — Coverage report
 - `vault status` — Vault health & status (if you have Vault CLI)
 - `vault secrets list -detailed` — List mounted engines (check `options.version=2` for `secret/`)
-- `vault kv list secret/` — List keys in KV-v2
-- `vault kv get secret/<path>` — Retrieve a specific secret
+- `vault kv list secret/ethereum` — List keys in KV-v2 under `ethereum`
+- `vault kv get secret/ethereum/<email>` — Retrieve a specific secret
+
+---
+
+## Manual Vault Key Verification (for Developers)
+
+If you need to verify that a private key was stored in Vault, follow these steps:
+
+1. **Enter the Vault container** (if you don't have Vault CLI locally):
+   ```bash
+   docker exec -it vault sh
+   ```
+2. **Configure the CLI**:
+   ```sh
+   export VAULT_ADDR='http://127.0.0.1:8200'
+   export VAULT_TOKEN=<your-root-token>
+   ```
+3. **List stored keys** under the `ethereum/` path:
+   ```sh
+   vault kv list secret/ethereum
+   ```
+4. **Retrieve a specific user’s secret** (e.g., your test user):
+   ```sh
+   vault kv get secret/ethereum/<email>
+   ```
+
+In the output, under **Data → privateKey**, you will see the stored private key, confirming the E2E process.
 
 ---
 
@@ -163,7 +188,7 @@ The Docker volume preserves your database, so you don’t need to re-run migrati
 If you don’t have the Vault CLI installed locally, you can execute all Vault commands inside the running container:
 
 ```bash
-# List mounted engines (detailed)
+# List engines (detailed)
 docker exec -it vault vault secrets list -detailed
 
 # Store a secret (KV-v2) under secret/ethereum/alice@example.com
@@ -185,4 +210,3 @@ docker exec -it vault vault kv destroy -versions=3 secret/ethereum/alice@example
 > You can also use `docker-compose exec vault` instead of `docker exec -it vault`.
 
 ---
-```
