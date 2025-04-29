@@ -1,3 +1,4 @@
+```markdown
 # Ethereum Key Vault
 
 Secure system for storing and managing Ethereum private keys with Google OAuth authentication and HashiCorp Vault integration.
@@ -48,7 +49,7 @@ Start all services (Postgres, Vault, backend, and frontend) with:
 pnpm run dev
 ```
 
-1. `docker-compose up -d` — launches Postgres and Vault in dev mode (KV v2 auto-mounted at `secret/`).
+1. `docker-compose up -d` — launches Postgres and Vault in dev mode (KV-v2 auto-mounted at `secret/`).
 2. `pnpm run backend:watch` — starts NestJS in watch mode.
 3. `pnpm run frontend:dev` — starts the front-end at `http://localhost:3007`.
 
@@ -122,6 +123,7 @@ The Docker volume preserves your database, so you don’t need to re-run migrati
 
 3. Copy `.env.example` to `.env.production` and fill in production variables.
 4. Build and run:
+
    ```bash
    pnpm run build
    NODE_ENV=production pnpm start
@@ -139,7 +141,7 @@ The Docker volume preserves your database, so you don’t need to re-run migrati
 - **seal** _(optional)_: Auto-unseal with AWS KMS or other.
 - **audit**: File-based audit logs of all API requests.
 - **telemetry**: Prometheus metrics retention.
-- **secrets "kv"**: KV v2 at `secret/`, enabling versioning.
+- **secrets "kv"**: KV-v2 at `secret/`, enabling versioning.
 
 ---
 
@@ -149,7 +151,38 @@ The Docker volume preserves your database, so you don’t need to re-run migrati
 - `pnpm run test` — Unit tests
 - `pnpm run test:e2e` — End-to-end tests
 - `pnpm run test:cov` — Coverage report
-- `vault status` — Vault health & status
+- `vault status` — Vault health & status (if you have Vault CLI)
 - `vault secrets list -detailed` — List mounted engines (check `options.version=2` for `secret/`)
-- `vault kv list secret/` — List keys in KV v2
+- `vault kv list secret/` — List keys in KV-v2
 - `vault kv get secret/<path>` — Retrieve a specific secret
+
+---
+
+## Working with Vault via Docker Container
+
+If you don’t have the Vault CLI installed locally, you can execute all Vault commands inside the running container:
+
+```bash
+# List mounted engines (detailed)
+docker exec -it vault vault secrets list -detailed
+
+# Store a secret (KV-v2) under secret/ethereum/alice@example.com
+docker exec -it vault vault kv put secret/ethereum/alice@example.com privateKey=0x...
+
+# Retrieve only the privateKey field
+docker exec -it vault vault kv get -field=privateKey secret/ethereum/alice@example.com
+
+# List all keys in secret/ethereum
+docker exec -it vault vault kv list secret/ethereum
+
+# Soft-delete a secret (all versions)
+docker exec -it vault vault kv delete secret/ethereum/alice@example.com
+
+# Destroy specific versions permanently (e.g., version 3)
+docker exec -it vault vault kv destroy -versions=3 secret/ethereum/alice@example.com
+```
+
+> You can also use `docker-compose exec vault` instead of `docker exec -it vault`.
+
+---
+```
