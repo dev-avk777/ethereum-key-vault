@@ -15,20 +15,38 @@ import * as argon2 from 'argon2'
 import { encodeAddress } from '@polkadot/util-crypto'
 import { EthereumService } from './ethereum.service'
 
+/**
+ * Data returned from Google OAuth.
+ */
 interface GoogleUserData {
+  /** Unique Google user ID */
   googleId: string
+  /** User's email address */
   email: string
+  /** User's display name */
   displayName: string
 }
 
+/**
+ * Authenticated user data returned by the service.
+ */
 interface AuthenticatedUser {
+  /** User's unique system ID */
   id: string
+  /** User's email */
   email: string
+  /** Linked Google ID, if any */
   googleId: string | null
+  /** Display name, if any */
   displayName: string | null
+  /** User's Ethereum public address */
   publicKey: string
 }
 
+/**
+ * Service responsible for user management including registration,
+ * authentication, and Ethereum wallet operations.
+ */
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name)
@@ -40,10 +58,22 @@ export class UsersService {
     private readonly vaultService: VaultService
   ) {}
 
+  /**
+   * Injects the EthereumService instance for blockchain operations.
+   * @param service - Initialized EthereumService
+   */
   setEthereumService(service: EthereumService) {
     this.ethereumService = service
   }
 
+  /**
+   * Registers a new user, hashes their password, generates an Ethereum wallet,
+   * and stores the private key in the Vault.
+   * @param createUserDto - DTO containing email and password
+   * @returns Object with user id, email, and publicKey
+   * @throws ConflictException if user already exists
+   * @throws InternalServerErrorException on vault or DB errors
+   */
   async registerUser(
     createUserDto: CreateUserDto
   ): Promise<{ id: string; email: string; publicKey: string }> {
@@ -84,14 +114,30 @@ export class UsersService {
     }
   }
 
+  /**
+   * Finds a user by email.
+   * @param email - Email address to search
+   * @returns User entity or null
+   */
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } })
   }
 
+  /**
+   * Finds a user by system ID.
+   * @param id - User UUID
+   * @returns User entity or null
+   */
   async findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } })
   }
 
+  /**
+   * Validates user credentials by comparing hashed password.
+   * @param email - User's email
+   * @param password - Plain text password to verify
+   * @returns User entity if valid, otherwise undefined
+   */
   async validateUser(email: string, password: string): Promise<User | undefined> {
     const user = await this.findByEmail(email)
     if (user && user.password && (await argon2.verify(user.password, password))) {
@@ -100,6 +146,12 @@ export class UsersService {
     return undefined
   }
 
+  /**
+   * Converts an Ethereum address to a Substrate-compatible address.
+   * @param ethAddress - Ethereum address (0x...)
+   * @returns Substrate-formatted address
+   * @throws BadRequestException if address is invalid
+   */
   async convertToSubstrateAddress(ethAddress: string): Promise<string> {
     if (!ethAddress || !ethAddress.startsWith('0x')) {
       throw new BadRequestException('Invalid Ethereum address')
@@ -108,6 +160,12 @@ export class UsersService {
     return encodeAddress(ethAddressBytes, 42)
   }
 
+  /**
+   * Retrieves the Substrate address for a user by their email.
+   * @param email - User's email
+   * @returns Substrate-compatible address
+   * @throws BadRequestException if user not found
+   */
   async getSubstrateAddress(email: string): Promise<string> {
     const user = await this.findByEmail(email)
     if (!user) {
@@ -116,6 +174,16 @@ export class UsersService {
     return this.convertToSubstrateAddress(user.publicKey)
   }
 
+  /**
+   * Sends native Ethereum tokens from a user's wallet to another address.
+   * @param email - Sender's email
+   * @param toAddress - Recipient's Ethereum address
+   * @param amount - Amount to send (in ETH)
+   * @param _isOAuth - Flag indicating OAuth-originated call
+   * @returns Transaction hash object
+   * @throws InternalServerErrorException if EthereumService not initialized
+   * @throws BadRequestException if user not found
+   */
   async sendTokensFromUser(
     email: string,
     toAddress: string,
@@ -135,6 +203,13 @@ export class UsersService {
     return { hash: tx.hash }
   }
 
+  /**
+   * Finds or creates a user based on Google OAuth data.
+   * @param userData - Data returned from Google OAuth
+   * @returns AuthenticatedUser details
+   * @throws BadRequestException for incomplete data or user not found
+   * @throws InternalServerErrorException on vault or DB errors
+   */
   async findOrCreateFromGoogle(userData: GoogleUserData): Promise<AuthenticatedUser> {
     if (!userData.googleId || !userData.email) {
       this.logger.error('Incomplete user data from Google OAuth')

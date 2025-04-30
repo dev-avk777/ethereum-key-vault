@@ -163,7 +163,7 @@ If you need to verify that a private key was stored in Vault, follow these steps
 
 1. **Enter the Vault container** (if you don't have Vault CLI locally):
    ```bash
-   docker exec -it vault sh
+   docker exec -it vault sh👍
    ```
 2. **Configure the CLI**:
    ```sh
@@ -194,7 +194,7 @@ docker exec -it vault vault secrets list -detailed
 # Store a secret (KV-v2) under secret/ethereum/alice@example.com
 docker exec -it vault vault kv put secret/ethereum/alice@example.com privateKey=0x...
 
-# Retrieve only the privateKey field
+# Retrieve only the privateKey field👍
 docker exec -it vault vault kv get -field=privateKey secret/ethereum/alice@example.com
 
 # List all keys in secret/ethereum
