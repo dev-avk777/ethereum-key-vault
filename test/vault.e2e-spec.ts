@@ -61,7 +61,11 @@ describe('Vault Integration (e2e)', () => {
      *    → instantiate Wallet and verify its signingKey.publicKey matches the returned one
      */
 
-    const secret = await vaultService.getSecret(`ethereum/${email}`)
+    // Получаем userId из тела ответа
+    const userId = registerRes.body.id
+    expect(userId).toBeDefined()
+
+    const secret = await vaultService.getSecret(`ethereum/${userId}`)
     expect(secret).toHaveProperty('privateKey')
     expect(typeof secret.privateKey).toBe('string')
 

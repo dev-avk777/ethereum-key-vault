@@ -19,7 +19,7 @@
     "package.json",
     "pg_hba.conf",
     "pnpm-lock.yaml",
-    "project_structure.json",
+    "project_overview.json",
     "tsconfig.build.json",
     "tsconfig.json",
     "tsconfig.spec.json",
@@ -115,8 +115,8 @@
     "ci": null
   },
   "summary": {
-    "total_files": 82,
-    "code_files": 40,
+    "total_files": 84,
+    "code_files": 41,
     "test_files": 8,
     "doc_files": 1
   },
@@ -183,9 +183,9 @@
       "last_modified": "2025-04-27T18:03:05.451925"
     },
     "docker-compose.yml": {
-      "size_bytes": 1340,
+      "size_bytes": 1342,
       "lines": null,
-      "last_modified": "2025-04-27T18:03:00.348357"
+      "last_modified": "2025-04-29T17:44:05.051199"
     },
     "jest-e2e.json": {
       "size_bytes": 368,
@@ -207,15 +207,15 @@
       "lines": null,
       "last_modified": "2025-04-29T11:46:59.251427"
     },
-    "project_structure.json": {
-      "size_bytes": 2274,
-      "lines": 93,
-      "last_modified": "2025-04-29T11:46:59.252296"
+    "project_overview.json": {
+      "size_bytes": 14363,
+      "lines": 470,
+      "last_modified": "2025-04-29T13:07:55.447406"
     },
     "src/app.module.ts": {
-      "size_bytes": 1045,
-      "lines": 30,
-      "last_modified": "2025-04-29T11:46:59.255591"
+      "size_bytes": 1130,
+      "lines": 31,
+      "last_modified": "2025-04-29T17:55:57.604556"
     },
     "src/auth/google.strategy.ts": {
       "size_bytes": 2452,
@@ -273,14 +273,14 @@
       "last_modified": "2025-04-26T18:54:20.630561"
     },
     "src/controllers/users.controller.spec.ts": {
-      "size_bytes": 4218,
-      "lines": 140,
-      "last_modified": "2025-04-21T12:41:16.771557"
+      "size_bytes": 3674,
+      "lines": 105,
+      "last_modified": "2025-04-29T13:07:55.449293"
     },
     "src/controllers/users.controller.ts": {
-      "size_bytes": 2885,
+      "size_bytes": 2912,
       "lines": 95,
-      "last_modified": "2025-04-29T11:46:59.258152"
+      "last_modified": "2025-04-29T13:07:55.451275"
     },
     "src/decorators/get-user.decorator.ts": {
       "size_bytes": 847,
@@ -373,14 +373,14 @@
       "last_modified": "2025-04-26T17:35:17.389449"
     },
     "src/services/users.service.spec.ts": {
-      "size_bytes": 9869,
+      "size_bytes": 9855,
       "lines": 264,
-      "last_modified": "2025-04-26T19:45:50.638733"
+      "last_modified": "2025-04-29T18:47:14.038219"
     },
     "src/services/users.service.ts": {
-      "size_bytes": 7515,
-      "lines": 197,
-      "last_modified": "2025-04-26T19:00:32.875526"
+      "size_bytes": 10176,
+      "lines": 272,
+      "last_modified": "2025-04-30T11:53:16.555830"
     },
     "src/services/vault.service.spec.ts": {
       "size_bytes": 4128,
@@ -388,14 +388,14 @@
       "last_modified": "2025-04-26T21:10:19.260356"
     },
     "src/services/vault.service.ts": {
-      "size_bytes": 3722,
-      "lines": 112,
-      "last_modified": "2025-04-26T21:10:19.262353"
+      "size_bytes": 4740,
+      "lines": 142,
+      "last_modified": "2025-04-29T17:51:21.014225"
     },
     "test/auth.e2e-spec.ts": {
-      "size_bytes": 5742,
-      "lines": 172,
-      "last_modified": "2025-04-29T11:46:59.260153"
+      "size_bytes": 4642,
+      "lines": 147,
+      "last_modified": "2025-04-29T13:07:55.453269"
     },
     "test/jest-e2e.json": {
       "size_bytes": 206,
@@ -408,9 +408,14 @@
       "last_modified": "2025-04-29T11:46:59.265458"
     },
     "test/users.e2e-spec.ts": {
-      "size_bytes": 1921,
-      "lines": 66,
-      "last_modified": "2025-04-28T12:11:03.130957"
+      "size_bytes": 3376,
+      "lines": 108,
+      "last_modified": "2025-04-29T13:08:08.863064"
+    },
+    "test/vault.e2e-spec.ts": {
+      "size_bytes": 3077,
+      "lines": 80,
+      "last_modified": "2025-04-29T18:54:34.845886"
     },
     "tsconfig.build.json": {
       "size_bytes": 188,
@@ -426,6 +431,11 @@
       "size_bytes": 282,
       "lines": 9,
       "last_modified": "2025-04-21T11:47:10.498610"
+    },
+    "~/.cursor/mcp.json": {
+      "size_bytes": 634,
+      "lines": 23,
+      "last_modified": "2025-04-30T10:41:05.820647"
     }
   },
   "import_graph": {

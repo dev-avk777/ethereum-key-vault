@@ -14,7 +14,8 @@ describe('RealVaultService (integration)', () => {
   const endpoint = process.env.VAULT_ENDPOINT || 'http://127.0.0.1:8200'
   const token = process.env.VAULT_TOKEN || 'dev-only-token'
   // Use a unique path for each test run to avoid collisions
-  const testPath = `ethereum/test-integration-${Date.now()}@example.com`
+  // Simulating a UUID instead of an email
+  const testPath = `ethereum/test-integration-${Date.now()}`
 
   beforeAll(() => {
     // Initialize service connecting to the live Vault

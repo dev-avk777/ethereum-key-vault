@@ -62,7 +62,7 @@ Once after cloning:
 pnpm run migration:run
 ```
 
-The Docker volume preserves your database, so you don’t need to re-run migrations on every start.
+The Docker volume preserves your database, so you don't need to re-run migrations on every start.
 
 ---
 
@@ -153,7 +153,7 @@ The Docker volume preserves your database, so you don’t need to re-run migrati
 - `vault status` — Vault health & status (if you have Vault CLI)
 - `vault secrets list -detailed` — List mounted engines (check `options.version=2` for `secret/`)
 - `vault kv list secret/ethereum` — List keys in KV-v2 under `ethereum`
-- `vault kv get secret/ethereum/<email>` — Retrieve a specific secret
+- `vault kv get secret/ethereum/<uuid>` — Retrieve a specific secret
 
 ---
 
@@ -174,9 +174,9 @@ If you need to verify that a private key was stored in Vault, follow these steps
    ```sh
    vault kv list secret/ethereum
    ```
-4. **Retrieve a specific user’s secret** (e.g., your test user):
+4. **Retrieve a specific user's secret** (e.g., your test user):
    ```sh
-   vault kv get secret/ethereum/<email>
+   vault kv get secret/ethereum/<uuid>
    ```
 
 In the output, under **Data → privateKey**, you will see the stored private key, confirming the E2E process.
@@ -185,26 +185,26 @@ In the output, under **Data → privateKey**, you will see the stored private ke
 
 ## Working with Vault via Docker Container
 
-If you don’t have the Vault CLI installed locally, you can execute all Vault commands inside the running container:
+If you don't have the Vault CLI installed locally, you can execute all Vault commands inside the running container:
 
 ```bash
 # List engines (detailed)
 docker exec -it vault vault secrets list -detailed
 
-# Store a secret (KV-v2) under secret/ethereum/alice@example.com
-docker exec -it vault vault kv put secret/ethereum/alice@example.com privateKey=0x...
+# Store a secret (KV-v2) under secret/ethereum/123e4567-e89b-12d3-a456-426614174000
+docker exec -it vault vault kv put secret/ethereum/123e4567-e89b-12d3-a456-426614174000 privateKey=0x...
 
 # Retrieve only the privateKey field👍
-docker exec -it vault vault kv get -field=privateKey secret/ethereum/alice@example.com
+docker exec -it vault vault kv get -field=privateKey secret/ethereum/123e4567-e89b-12d3-a456-426614174000
 
 # List all keys in secret/ethereum
 docker exec -it vault vault kv list secret/ethereum
 
 # Soft-delete a secret (all versions)
-docker exec -it vault vault kv delete secret/ethereum/alice@example.com
+docker exec -it vault vault kv delete secret/ethereum/123e4567-e89b-12d3-a456-426614174000
 
 # Destroy specific versions permanently (e.g., version 3)
-docker exec -it vault vault kv destroy -versions=3 secret/ethereum/alice@example.com
+docker exec -it vault vault kv destroy -versions=3 secret/ethereum/123e4567-e89b-12d3-a456-426614174000
 ```
 
 > You can also use `docker-compose exec vault` instead of `docker exec -it vault`.

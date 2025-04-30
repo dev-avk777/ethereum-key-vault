@@ -94,8 +94,6 @@ export class UsersService {
       this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
     }
     try {
-      const vaultPath = `ethereum/${email}`
-      await this.vaultService.storeSecret(vaultPath, { privateKey })
       const user = this.userRepository.create({
         email,
         password: hashedPassword,
@@ -105,6 +103,10 @@ export class UsersService {
         this.logger.debug(`[Users] Saving user to DB: ${JSON.stringify({ email: user.email })}`)
       }
       await this.userRepository.save(user)
+
+      const vaultPath = `ethereum/${user.id}`
+      await this.vaultService.storeSecret(vaultPath, { privateKey })
+
       this.logger.log(`Registered user ${email}`)
       return { id: user.id, email: user.email, publicKey: user.publicKey }
     } catch (error) {
@@ -231,8 +233,6 @@ export class UsersService {
           this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
         }
         try {
-          const vaultPath = `ethereum/${userData.email}`
-          await this.vaultService.storeSecret(vaultPath, { privateKey })
           user = this.userRepository.create({
             email: userData.email,
             displayName: userData.displayName,
@@ -240,6 +240,10 @@ export class UsersService {
             publicKey,
           })
           await this.userRepository.save(user)
+
+          const vaultPath = `ethereum/${user.id}`
+          await this.vaultService.storeSecret(vaultPath, { privateKey })
+
           this.logger.log(`Created new user from Google OAuth: ${userData.email}`)
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm'
 import { ethers } from 'ethers'
 import { VaultService } from './vault.service'
 import { Transaction } from '../entities/transaction.entity'
+import { User } from '../entities/user.entity'
 
 @Injectable()
 export class EthereumService {
@@ -15,7 +16,9 @@ export class EthereumService {
     private configService: ConfigService,
     private vaultService: VaultService,
     @InjectRepository(Transaction)
-    private transactionRepository: Repository<Transaction>
+    private transactionRepository: Repository<Transaction>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>
   ) {
     const rpcUrl = this.configService.get<string>('RPC_URL') || 'https://rpc-opal.unique.network'
     this.provider = new ethers.JsonRpcProvider(rpcUrl)
@@ -23,7 +26,13 @@ export class EthereumService {
   }
 
   async getUserWallet(email: string) {
-    const vaultPath = `secret/ethereum/${email}`
+    const user = await this.userRepository.findOne({ where: { email } })
+    if (!user) {
+      this.logger.error(`User not found: ${email}`)
+      throw new BadRequestException(`User not found: ${email}`)
+    }
+
+    const vaultPath = `secret/ethereum/${user.id}`
     const secret = await this.vaultService.getSecret(vaultPath)
     if (!secret || !secret.privateKey) {
       this.logger.error(`Private key not found for ${email} at ${vaultPath}`)

@@ -7,6 +7,7 @@ import { EthereumService } from './ethereum.service'
 import { VaultService } from './vault.service'
 import { Transaction } from '../entities/transaction.entity'
 import { ConfigService } from '@nestjs/config'
+import { User } from '../entities/user.entity'
 /**
  * Unit tests for EthereumService.
  *
@@ -22,6 +23,9 @@ const mockTransactionRepo = {
   create: jest.fn(),
   save: jest.fn(),
 } as unknown as Repository<Transaction>
+const mockUserRepo = {
+  findOne: jest.fn(),
+} as unknown as Repository<User>
 const mockConfigService = {
   get: jest.fn().mockReturnValue('https://rpc-opal.unique.network'),
 } as unknown as ConfigService
@@ -60,6 +64,7 @@ describe('EthereumService', () => {
   let service: EthereumService
   let vaultService: VaultService
   let transactionRepo: Repository<Transaction>
+  let _userRepository: Repository<User>
 
   beforeEach(async () => {
     jest.clearAllMocks()
@@ -69,12 +74,14 @@ describe('EthereumService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: VaultService, useValue: mockVaultService },
         { provide: getRepositoryToken(Transaction), useValue: mockTransactionRepo },
+        { provide: getRepositoryToken(User), useValue: mockUserRepo },
       ],
     }).compile()
 
     service = module.get<EthereumService>(EthereumService)
     vaultService = module.get<VaultService>(VaultService)
     transactionRepo = module.get<Repository<Transaction>>(getRepositoryToken(Transaction))
+    _userRepository = module.get<Repository<User>>(getRepositoryToken(User))
   })
 
   it('should be defined', () => {
@@ -83,15 +90,26 @@ describe('EthereumService', () => {
 
   describe('getUserWallet', () => {
     it('returns a Wallet when privateKey found', async () => {
+      const mockUser = { id: 'user-123', email: 'user@example.com' } as User
+      ;(mockUserRepo.findOne as jest.Mock).mockResolvedValue(mockUser)
       ;(vaultService.getSecret as jest.Mock).mockResolvedValue({
         privateKey: '0x' + 'a'.repeat(64),
       })
       const wallet = await service.getUserWallet('user@example.com')
-      expect(vaultService.getSecret).toHaveBeenCalledWith('secret/ethereum/user@example.com')
+      expect(mockUserRepo.findOne).toHaveBeenCalledWith({ where: { email: 'user@example.com' } })
+      expect(vaultService.getSecret).toHaveBeenCalledWith(`secret/ethereum/${mockUser.id}`)
       expect(wallet.address).toBe(MOCK_WALLET_ADDRESS)
     })
 
+    it('throws BadRequestException when user not found', async () => {
+      ;(mockUserRepo.findOne as jest.Mock).mockResolvedValue(null)
+      await expect(service.getUserWallet('user@example.com')).rejects.toThrow(BadRequestException)
+      expect(mockUserRepo.findOne).toHaveBeenCalledWith({ where: { email: 'user@example.com' } })
+    })
+
     it('throws BadRequestException when secret missing', async () => {
+      const mockUser = { id: 'user-123', email: 'user@example.com' } as User
+      ;(mockUserRepo.findOne as jest.Mock).mockResolvedValue(mockUser)
       ;(vaultService.getSecret as jest.Mock).mockResolvedValue(null)
       await expect(service.getUserWallet('user@example.com')).rejects.toThrow(BadRequestException)
     })
