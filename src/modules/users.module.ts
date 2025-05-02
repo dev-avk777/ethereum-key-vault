@@ -11,6 +11,7 @@ import { JwtModule } from '@nestjs/jwt'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { VaultConfigModule } from '../config/vault.config'
 import { EthereumModule } from './ethereum.module'
+import { WalletModule } from './wallet.module'
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { EthereumModule } from './ethereum.module'
     ConfigModule,
     VaultConfigModule,
     forwardRef(() => EthereumModule),
+    WalletModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

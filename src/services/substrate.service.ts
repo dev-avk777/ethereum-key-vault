@@ -1,0 +1,99 @@
+import { Injectable, Logger, BadRequestException, OnModuleInit } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { ApiPromise, WsProvider } from '@polkadot/api'
+import { Keyring } from '@polkadot/keyring'
+import { mnemonicGenerate, encodeAddress } from '@polkadot/util-crypto'
+import { IWalletService } from './wallet.interface'
+import { VaultService } from './vault.service'
+
+@Injectable()
+/**
+ * SubstrateService handles wallet operations for Substrate-based blockchain.
+ */
+export class SubstrateService implements IWalletService, OnModuleInit {
+  private api: ApiPromise
+  private readonly logger = new Logger(SubstrateService.name)
+  private readonly ss58Prefix: number
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly vaultService: VaultService
+  ) {
+    // Set the ss58Prefix from the config, defaulting to 42
+    this.ss58Prefix = this.configService.get<number>('SUBSTRATE_SS58_PREFIX') ?? 42
+  }
+
+  /**
+   * Initializes the connection to the Substrate node.
+   * @returns {Promise<void>} A promise that resolves when the connection is established.
+   */
+  async onModuleInit() {
+    const url = this.configService.get<string>('SUBSTRATE_RPC_URL') || 'ws://127.0.0.1:9944'
+    const provider = new WsProvider(url)
+    this.api = await ApiPromise.create({ provider })
+    this.logger.log(`Connected to Substrate node at ${url}`)
+  }
+
+  /**
+   * Generates a new SR25519 key pair, stores the mnemonic in Vault, and returns the SS58 address.
+   * @param {string} userId - The ID of the user for whom the wallet is generated.
+   * @returns {Promise<{ address: string }>} A promise that resolves to an object containing the generated address.
+   */
+  async generateWallet(userId: string): Promise<{ address: string }> {
+    const mnemonic = mnemonicGenerate()
+    const keyring = new Keyring({ type: 'sr25519' })
+    const pair = keyring.addFromUri(mnemonic)
+
+    // Use ss58Prefix instead of substrateRpcUrl
+    const address = encodeAddress(pair.publicKey, this.ss58Prefix)
+
+    await this.vaultService.storeSecret(`substrate/${userId}`, { mnemonic })
+
+    this.logger.log(`Generated Substrate wallet for user ${userId}: ${address}`)
+    return { address }
+  }
+
+  /**
+   * Sends tokens using balances.transfer and waits for inclusion in a block.
+   * @param {string} userId - The ID of the user sending tokens.
+   * @param {string} to - The recipient's address.
+   * @param {string} amount - The amount of tokens to send.
+   * @returns {Promise<{ hash: string }>} A promise that resolves to an object containing the transaction hash.
+   * @throws {BadRequestException} If there is no mnemonic for the user or if the transfer fails.
+   */
+  async sendTokens(userId: string, to: string, amount: string): Promise<{ hash: string }> {
+    if (!this.api) {
+      await this.onModuleInit()
+    }
+
+    // Retrieve mnemonic from Vault
+    const secret = await this.vaultService.getSecret(`substrate/${userId}`)
+    if (!secret?.mnemonic) {
+      throw new BadRequestException(`No Substrate mnemonic for user ${userId}`)
+    }
+
+    const keyring = new Keyring({ type: 'sr25519' })
+    const pair = keyring.addFromUri(secret.mnemonic)
+
+    const dest = to
+    // If amount is a string like "1.23", Polkadot API automatically converts it
+    const tx = this.api.tx.balances.transfer(dest, amount)
+
+    return new Promise((resolve, reject) => {
+      tx.signAndSend(pair, ({ status, dispatchError, txHash }) => {
+        if (dispatchError) {
+          const message = dispatchError.toString()
+          this.logger.error(`Transfer failed: ${message}`)
+          return reject(new BadRequestException(message))
+        }
+        if (status.isInBlock) {
+          this.logger.log(`Transfer included in block ${status.asInBlock.toHex()}`)
+          return resolve({ hash: txHash.toHex() })
+        }
+      }).catch(err => {
+        this.logger.error(`sendTokens error: ${err.message}`)
+        reject(new BadRequestException(err.message))
+      })
+    })
+  }
+}

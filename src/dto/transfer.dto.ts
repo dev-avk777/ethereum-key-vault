@@ -1,12 +1,5 @@
-import {
-  IsEthereumAddress,
-  IsString,
-  Matches,
-  IsEmail,
-  IsBoolean,
-  IsOptional,
-} from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsEthereumAddress, IsString, Matches } from 'class-validator'
 
 /**
  * DTO for token transfer operations
@@ -38,12 +31,4 @@ export class EmailTransferDto extends TransferDto {
   })
   @IsEmail()
   email: string
-
-  @ApiProperty({
-    description: 'Whether the user authenticated via OAuth',
-    example: false,
-  })
-  @IsBoolean()
-  @IsOptional()
-  isOAuth: boolean = false
 }

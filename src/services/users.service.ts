@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   BadRequestException,
   ConflictException,
+  Inject,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -14,6 +15,8 @@ import { Wallet } from 'ethers'
 import * as argon2 from 'argon2'
 import { encodeAddress } from '@polkadot/util-crypto'
 import { EthereumService } from './ethereum.service'
+import { ConfigService } from '@nestjs/config'
+import { IWalletService } from './wallet.interface'
 
 /**
  * Data returned from Google OAuth.
@@ -55,7 +58,10 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly vaultService: VaultService
+    private readonly vaultService: VaultService,
+    private readonly configService: ConfigService,
+    @Inject('WalletService')
+    private readonly wallet: IWalletService
   ) {}
 
   /**
@@ -75,40 +81,40 @@ export class UsersService {
    * @throws InternalServerErrorException on vault or DB errors
    */
   async registerUser(
-    createUserDto: CreateUserDto
+    dto: CreateUserDto
   ): Promise<{ id: string; email: string; publicKey: string }> {
-    const { email, password } = createUserDto
-    const existingUser = await this.findByEmail(email)
+    const { email, password } = dto
+
+    // Check if user exists
+    const existingUser = await this.userRepository.findOne({ where: { email } })
     if (existingUser) {
-      this.logger.warn(`[Users] User with email ${email} already exists`)
       throw new ConflictException(`User with email ${email} already exists`)
     }
 
+    // Hash password
     const hashedPassword = await argon2.hash(password)
-    this.logger.debug(`[Wallet] Generating Ethereum wallet for ${email}`)
-    const wallet = Wallet.createRandom()
-    const privateKey = wallet.privateKey
-    const publicKey = wallet.address
-    if (process.env.NODE_ENV !== 'production') {
-      this.logger.debug(`[Wallet] Generated wallet address: ${wallet.address}`)
-      this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
-    }
+
     try {
+      // Generate wallet using email
+      const { address: publicKey, privateKey } = await this.wallet.generateWallet(email)
+
+      // Create user entity
       const user = this.userRepository.create({
         email,
         password: hashedPassword,
         publicKey,
       })
-      if (process.env.NODE_ENV !== 'production') {
-        this.logger.debug(`[Users] Saving user to DB: ${JSON.stringify({ email: user.email })}`)
-      }
+
+      // Save user to database
       await this.userRepository.save(user)
 
-      const vaultPath = `ethereum/${user.id}`
-      await this.vaultService.storeSecret(vaultPath, { privateKey })
+      // Store private key in Vault
+      await this.vaultService.storeSecret(`ethereum/${user.id}`, {
+        privateKey,
+      })
 
       this.logger.log(`Registered user ${email}`)
-      return { id: user.id, email: user.email, publicKey: user.publicKey }
+      return { id: user.id, email: user.email, publicKey }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       this.logger.error(`Failed to register user ${email}: ${errorMessage}`)
@@ -181,7 +187,6 @@ export class UsersService {
    * @param email - Sender's email
    * @param toAddress - Recipient's Ethereum address
    * @param amount - Amount to send (in ETH)
-   * @param _isOAuth - Flag indicating OAuth-originated call
    * @returns Transaction hash object
    * @throws InternalServerErrorException if EthereumService not initialized
    * @throws BadRequestException if user not found
@@ -189,20 +194,25 @@ export class UsersService {
   async sendTokensFromUser(
     email: string,
     toAddress: string,
-    amount: string,
-    _isOAuth: boolean = false
-  ) {
+    amount: string
+  ): Promise<{ hash: string }> {
+    // Check if EthereumService is set
     if (!this.ethereumService) {
       this.logger.error('EthereumService not initialized')
       throw new InternalServerErrorException('EthereumService not initialized')
     }
+
+    // Find user
     const user = await this.findByEmail(email)
     if (!user) {
       this.logger.warn(`User ${email} not found`)
       throw new BadRequestException(`User ${email} not found`)
     }
-    const tx = await this.ethereumService.sendNative(email, toAddress, amount, _isOAuth)
-    return { hash: tx.hash }
+
+    // Send transaction
+    const isOAuth = !!user.googleId
+    const { hash } = await this.ethereumService.sendNative(email, toAddress, amount, isOAuth)
+    return { hash }
   }
 
   /**

@@ -92,7 +92,7 @@ export class EthereumController {
   @ApiOperation({ summary: 'Transfer tokens using email (for external services)' })
   @Post('transfer-by-email')
   async transferByEmail(@Body() dto: EmailTransferDto) {
-    return this.usersService.sendTokensFromUser(dto.email, dto.toAddress, dto.amount, dto.isOAuth)
+    return this.usersService.sendTokensFromUser(dto.email, dto.toAddress, dto.amount)
   }
 
   /**

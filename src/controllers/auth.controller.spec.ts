@@ -29,6 +29,7 @@ describe('AuthController', () => {
     createdAt: new Date(),
     googleId: null,
     displayName: null,
+    substratePublicKey: null,
   }
 
   beforeEach(async () => {

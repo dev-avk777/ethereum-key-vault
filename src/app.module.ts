@@ -4,9 +4,11 @@ import { ConfigModule } from '@nestjs/config'
 import { UsersModule } from './modules/users.module'
 import { AuthModule } from './modules/auth.module'
 import { EthereumModule } from './modules/ethereum.module'
+import { SubstrateModule } from './modules/substrate.module'
 import { databaseConfig } from './config/database.config'
 import { VaultConfigModule } from './config/vault.config'
 import { VaultServiceProvider } from './services/vault.service'
+import { WalletModule } from './modules/wallet.module'
 
 @Module({
   imports: [
@@ -24,8 +26,15 @@ import { VaultServiceProvider } from './services/vault.service'
     AuthModule,
     // Connect Ethereum module
     EthereumModule,
+    // Connect Substrate module
+    SubstrateModule,
+    // Also include WalletModule
+    WalletModule,
   ],
   controllers: [],
-  providers: [VaultServiceProvider],
+  providers: [
+    // Keeping only VaultServiceProvider, WalletService is now in WalletModule
+    VaultServiceProvider,
+  ],
 })
 export class AppModule {}
