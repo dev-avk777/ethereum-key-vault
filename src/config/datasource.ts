@@ -18,8 +18,7 @@ export const dataSourceOptions: DataSourceOptions = {
   // Note that __dirname will be
   //  - src/config when running via ts-node
   //  - dist/src/config when running via node dist/main.js
-  migrations: [path.join(__dirname, '../migrations/*{.ts,.js}')],
-
+  migrations: [path.join(__dirname, '../migrations/*.{ts,js}')],
   // Migration CLI applies only migrations without synchronization
   synchronize: false,
   logging: process.env.NODE_ENV === 'development',

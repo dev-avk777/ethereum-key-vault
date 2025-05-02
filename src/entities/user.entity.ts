@@ -14,6 +14,14 @@ export class User {
   @Column({ unique: true, type: 'varchar' })
   publicKey: string
 
+  @Column({
+    nullable: true,
+    name: 'substrate_public_key',
+    type: 'varchar',
+    unique: true,
+  })
+  substratePublicKey: string | null
+
   @Column({ nullable: true, name: 'google_id', type: 'varchar' })
   googleId: string | null
 

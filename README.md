@@ -6,13 +6,13 @@ Secure system for storing and managing Ethereum private keys with Google OAuth a
 
 ## Requirements
 
-- Docker & Docker Compose
-- Node.js v18+ and pnpm
-- (Optional) Access to HashiCorp Vault for production environments
+* Docker & Docker Compose
+* Node.js v18+ and pnpm
+* (Optional) Access to HashiCorp Vault for production environments
 
 ---
 
-## Clone the repository
+## Clone the Repository
 
 ```bash
 git clone https://github.com/yourusername/ethereum-key-vault.git
@@ -24,19 +24,21 @@ cd ethereum-key-vault
 ## Environment Setup
 
 1. Copy the template `.env.example` to `.env`:
+
    ```bash
    cp .env.example .env
    ```
 2. Open `.env` and configure the following variables:
-   - `POSTGRES_HOST` (usually `localhost`)
-   - `POSTGRES_PORT` (default: `5432`)
-   - `POSTGRES_USER`
-   - `POSTGRES_PASSWORD`
-   - `POSTGRES_DB`
-   - `VAULT_ENDPOINT` and `VAULT_TOKEN` (for development or production Vault)
-   - `PORT` (application port; default: `5000`)
-   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`
-   - `FRONTEND_URL` and `VITE_AUTH_API_URL`
+
+   * `POSTGRES_HOST` (usually `localhost`)
+   * `POSTGRES_PORT` (default: `5432`)
+   * `POSTGRES_USER`
+   * `POSTGRES_PASSWORD`
+   * `POSTGRES_DB`
+   * `VAULT_ENDPOINT` and `VAULT_TOKEN` (for development or production Vault)
+   * `PORT` (application port; default: `5000`)
+   * `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`
+   * `FRONTEND_URL` and `VITE_AUTH_API_URL`
 
 ---
 
@@ -48,68 +50,115 @@ Start all services (Postgres, Vault, backend, and frontend) with:
 pnpm run dev
 ```
 
-1. `docker-compose up -d` — launches Postgres and Vault in dev mode (KV-v2 auto-mounted at `secret/`).
-2. `pnpm run backend:watch` — starts NestJS in watch mode.
-3. `pnpm run frontend:dev` — starts the front-end at `http://localhost:3007`.
+1. `docker-compose up -d` — Launches Postgres and Vault in dev mode (KV-v2 mounted at `secret/`).
+2. `pnpm run backend:watch` — Starts NestJS in watch mode.
+3. `pnpm run frontend:dev` — Starts the frontend at `http://localhost:3007`.
 
 ---
 
-### Running Migrations
+## Running Migrations
 
-Once after cloning:
+Schema changes must be applied via migrations to ensure consistency across environments. Follow these universal steps using pnpm:
 
-```bash
-pnpm run migration:run
-```
+1. **Show pending migrations**
 
-The Docker volume preserves your database, so you don't need to re-run migrations on every start.
+   ```bash
+   pnpm run migration:show
+   ```
+
+   Displays all migrations that have not yet been applied.
+
+2. **Create a new migration file**
+
+   You have two options:
+
+   * **Using pnpm script**:
+
+     ```bash
+     pnpm run migration:create src/migrations/YourMigrationName
+     ```
+
+     This uses the alias defined in `package.json` to invoke the CLI.
+
+   * **Direct TypeORM CLI invocation**:
+
+     ```bash
+     npx ts-node -r tsconfig-paths/register \
+       ./node_modules/typeorm/cli.js \
+       migration:create \
+       src/migrations/YourMigrationName
+     ```
+
+     This bypasses the npm script and calls the CLI directly.
+
+3. **Edit the migration** Open the new file and implement both sides:
+
+   ```ts
+   export class <Timestamp>FileName implements MigrationInterface {
+     public async up(qr: QueryRunner): Promise<void> {
+       // Apply schema changes, e.g. add/drop columns or tables
+     }
+
+     public async down(qr: QueryRunner): Promise<void> {
+       // Revert schema changes
+     }
+   }
+   ```
+
+4. **Run all pending migrations**
+
+   ```bash
+   pnpm run migration:run
+   ```
+
+   Creates the `migrations` table if needed and applies migrations in chronological order.
+
+5. **Revert the last migration** (if necessary)
+
+   ```bash
+   pnpm run migration:revert
+   ```
+
+   Rolls back the most recently applied migration.
+
+**Notes:**
+
+* Always generate migrations via the CLI (`pnpm run migration:create` or `pnpm run migration:generate`) to maintain correct timestamp ordering.
+* In development, you may temporarily enable automatic synchronization, but avoid it in production.
+* If you encounter conflicts (e.g., existing tables or columns), you can reset the schema:
+
+  ```sql
+  DROP SCHEMA public CASCADE;
+  CREATE SCHEMA public;
+  ```
+
+---
+
+## Migration Best Practices
+
+To avoid future migration issues, follow these best practices:
+
+* **Prefer auto-generated diffs**: Use `pnpm run migration:generate -- src/migrations/YourMigrationName` to automatically detect schema changes from entities.
+* **Reserve manual stubs for complex operations**: Only use `pnpm run migration:create` when you need custom DDL/DML that the auto-diff cannot cover.
+* **Always specify the data source**: Include `--dataSource src/config/datasource.ts` (or the equivalent flag) for all non-`create` commands to ensure TypeORM picks up the correct configuration.
+* **Maintain a clean timestamp order**: Let the CLI generate the timestamped filenames to preserve chronological execution order.
+* **Reset schema in development**: If you encounter "already exists" errors, reset your local schema:
+
+  ```sql
+  DROP SCHEMA public CASCADE;
+  CREATE SCHEMA public;
+  ```
+
+  Then rerun `pnpm run migration:run`.
+* **Verify pending migrations**: Always run `pnpm run migration:show` before `migration:run` to confirm which migrations will be applied.
 
 ---
 
 ## Production Deployment
 
-1. **Create `vault/config/prod.hcl`** with the following content:
-
-   ```hcl
-   # Global settings
-   api_addr     = "https://vault.your-domain.com:8200"
-   cluster_addr = "https://vault.your-domain.com:8201"
-   ui = true
-
-   storage "file" {
-     path = "/vault/data"
-   }
-
-   listener "tcp" {
-     address     = "0.0.0.0:8200"
-     tls_disable = true
-   }
-
-   # Optional: AWS KMS auto-unseal (uncomment and configure)
-   # seal "awskms" {
-   #   region     = "eu-west-1"
-   #   kms_key_id = "arn:aws:kms:..."
-   # }
-
-   # Audit logging
-   audit "file" {
-     file_path = "/vault/logs/audit.log"
-     log_raw   = true
-   }
-
-   # Telemetry for Prometheus
-   telemetry {
-     prometheus_retention_time = "24h"
-   }
-
-   # Mount KV version 2 at secret/ with versioning
-   secrets "kv" {
-     path    = "secret"
-     version = 2
-   }
-   ```
-
-2. **Mount the config** in `docker-compose.prod.yml`:
+1. Copy `.env.example` to `.env.production` and fill production values.
+2. Prepare Vault config `vault/config/prod.hcl` with KV-v2, auto-unseal, audit, etc.
+3. Adjust `docker-compose.prod.yml` to mount `prod.hcl`:
 
    ```yaml
    services:
@@ -119,9 +168,7 @@ The Docker volume preserves your database, so you don't need to re-run migration
          - ./vault/config/prod.hcl:/vault/config/prod.hcl:ro
        command: vault server -config=/vault/config/prod.hcl
    ```
-
-3. Copy `.env.example` to `.env.production` and fill in production variables.
-4. Build and run:
+4. Build and start:
 
    ```bash
    pnpm run build
@@ -132,81 +179,67 @@ The Docker volume preserves your database, so you don't need to re-run migration
 
 ## Vault Production Configuration Reference
 
-- **api_addr**: External address clients use (`https://vault.your-domain.com:8200`).
-- **cluster_addr**: Internal HA address (`8201`).
-- **ui**: Enable Vault UI.
-- **storage**: Persists data in `/vault/data`.
-- **listener**: TCP listener without TLS (for simplicity).
-- **seal** _(optional)_: Auto-unseal with AWS KMS or other.
-- **audit**: File-based audit logs of all API requests.
-- **telemetry**: Prometheus metrics retention.
-- **secrets "kv"**: KV-v2 at `secret/`, enabling versioning.
+* **api\_addr**: Client API address (e.g. `https://vault.your-domain.com:8200`).
+* **cluster\_addr**: HA cluster address (`8201`).
+* **storage**: Persists data (e.g. file, Consul, AWS S3).
+* **listener**: TCP listener settings.
+* **seal**: Auto-unseal (e.g. AWS KMS).
+* **audit**: File or syslog audit logs.
+* **telemetry**: Prometheus metrics.
+* **secrets "kv"**: Mount KV-v2 at `secret/` for versioned key-value.
 
 ---
 
 ## Useful Commands
 
-- `pnpm run lint` — ESLint & Prettier
-- `pnpm run test` — Unit tests
-- `pnpm run test:e2e` — End-to-end tests
-- `pnpm run test:cov` — Coverage report
-- `vault status` — Vault health & status (if you have Vault CLI)
-- `vault secrets list -detailed` — List mounted engines (check `options.version=2` for `secret/`)
-- `vault kv list secret/ethereum` — List keys in KV-v2 under `ethereum`
-- `vault kv get secret/ethereum/<uuid>` — Retrieve a specific secret
+* `pnpm run lint` — ESLint & Prettier
+* `pnpm run test` — Unit tests
+* `pnpm run test:e2e` — End-to-end tests
+* `pnpm run test:cov` — Coverage report
+* `vault status` — Vault health check
+* `vault secrets list -detailed` — List mounted secret engines
 
 ---
 
-## Manual Vault Key Verification (for Developers)
+## Manual Vault Key Verification (Developers)
 
-If you need to verify that a private key was stored in Vault, follow these steps:
+1. Enter the Vault container:
 
-1. **Enter the Vault container** (if you don't have Vault CLI locally):
    ```bash
-   docker exec -it vault sh👍
+   docker exec -it vault sh
    ```
-2. **Configure the CLI**:
+2. Configure CLI:
+
    ```sh
    export VAULT_ADDR='http://127.0.0.1:8200'
    export VAULT_TOKEN=<your-root-token>
    ```
-3. **List stored keys** under the `ethereum/` path:
+3. List and inspect secrets:
+
    ```sh
    vault kv list secret/ethereum
+   vault kv get secret/ethereum/<user-id>
    ```
-4. **Retrieve a specific user's secret** (e.g., your test user):
-   ```sh
-   vault kv get secret/ethereum/<uuid>
-   ```
-
-In the output, under **Data → privateKey**, you will see the stored private key, confirming the E2E process.
 
 ---
 
-## Working with Vault via Docker Container
-
-If you don't have the Vault CLI installed locally, you can execute all Vault commands inside the running container:
+## Working with Vault via Docker
 
 ```bash
-# List engines (detailed)
+# List secret engines
 docker exec -it vault vault secrets list -detailed
 
-# Store a secret (KV-v2) under secret/ethereum/123e4567-e89b-12d3-a456-426614174000
-docker exec -it vault vault kv put secret/ethereum/123e4567-e89b-12d3-a456-426614174000 privateKey=0x...
+# Store a secret
+docker exec -it vault vault kv put secret/ethereum/<id> privateKey=0x...
 
-# Retrieve only the privateKey field👍
-docker exec -it vault vault kv get -field=privateKey secret/ethereum/123e4567-e89b-12d3-a456-426614174000
+# Retrieve privateKey only
+docker exec -it vault vault kv get -field=privateKey secret/ethereum/<id>
 
-# List all keys in secret/ethereum
-docker exec -it vault vault kv list secret/ethereum
+# Delete a secret
+docker exec -it vault vault kv delete secret/ethereum/<id>
 
-# Soft-delete a secret (all versions)
-docker exec -it vault vault kv delete secret/ethereum/123e4567-e89b-12d3-a456-426614174000
-
-# Destroy specific versions permanently (e.g., version 3)
-docker exec -it vault vault kv destroy -versions=3 secret/ethereum/123e4567-e89b-12d3-a456-426614174000
+# Destroy specific versions
+docker exec -it vault vault kv destroy -versions=1 secret/ethereum/<id>
 ```
-
-> You can also use `docker-compose exec vault` instead of `docker exec -it vault`.
 
 ---
