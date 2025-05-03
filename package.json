@@ -5,7 +5,7 @@
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
-    "dev": "concurrently \"docker-compose up -d\" \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
+    "dev": "docker-compose up -d && wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:8200 && concurrently \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
     "backend:watch": "ts-node-dev --respawn --transpile-only src/main.ts",
     "frontend:dev": "cd ../oauth-frontend && pnpm run dev",
     "restart:app": "concurrently \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
@@ -88,7 +88,8 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wait-on": "^8.0.3"
   },
   "jest": {
     "moduleFileExtensions": [
