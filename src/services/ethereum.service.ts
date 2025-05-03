@@ -30,13 +30,13 @@ export class EthereumService implements IWalletService {
   /**
    * Generates an Ethereum wallet for a user through VaultService.
    * @param userId - The ID of the user for whom the wallet is generated.
-   * @returns An object containing the wallet address.
+   * @returns An object containing the wallet address and private key.
    */
-  async generateWallet(userId: string): Promise<{ address: string }> {
+  async generateWallet(userId: string): Promise<{ address: string; privateKey: string }> {
     const { publicKey, privateKey } = await this.vaultService.generateKeyPair()
     await this.vaultService.storeSecret(`ethereum/${userId}`, { privateKey })
     this.logger.log(`Generated Ethereum wallet for user ${userId}: ${publicKey}`)
-    return { address: publicKey }
+    return { address: publicKey, privateKey }
   }
 
   /**

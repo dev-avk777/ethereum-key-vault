@@ -44,7 +44,17 @@ describe('SubstrateService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SubstrateService,
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('wss://mock-node') } },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'SUBSTRATE_SS58_PREFIX') {
+                return 42
+              }
+              return 'wss://mock-node'
+            }),
+          },
+        },
         { provide: VaultService, useValue: vaultService },
       ],
     }).compile()
@@ -74,8 +84,9 @@ describe('SubstrateService', () => {
     })
     // SS58 address is returned
     expect(result.address).toBe('5MockSS58Address')
+    expect(result.privateKey).toBe('mock seed phrase')
     // encodeAddress was called with the publicKey and default prefix (42)
-    expect(encodeAddress).toHaveBeenCalledWith(expect.any(Uint8Array), 42)
+    expect(encodeAddress).toHaveBeenCalledWith(Uint8Array.from([1, 2, 3, 4]), 42)
   })
 
   it('sendTokens: should throw if no mnemonic in Vault', async () => {
@@ -93,7 +104,7 @@ describe('SubstrateService', () => {
     const fakeExtrinsic: any = {
       signAndSend: (_pair: any, callback: any) => {
         callback({
-          status: { isInBlock: false, asInBlock: () => undefined }, // Fixed duplicate key issue
+          status: { isInBlock: false },
           dispatchError: { toString: () => 'Bad origin' },
           txHash: { toHex: () => '0xDeadBeef' },
         })
@@ -113,7 +124,10 @@ describe('SubstrateService', () => {
       signAndSend: (_pair: any, callback: any) => {
         // first call: in block
         callback({
-          status: { isInBlock: true, asInBlock: () => '0xBlockHash' },
+          status: {
+            isInBlock: true,
+            asInBlock: '0xBlockHash',
+          },
           dispatchError: null,
           txHash: { toHex: () => fakeHash },
         })

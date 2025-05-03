@@ -23,12 +23,13 @@
     "tsconfig.build.json",
     "tsconfig.json",
     "tsconfig.spec.json",
-    "tsconfig.tsbuildinfo"
+    "tsconfig.tsbuildinfo",
+    "vault-init.sh"
   ],
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
-    "dev": "concurrently \"docker-compose up -d\" \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
+    "dev": "docker-compose up -d && wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:8200 && concurrently \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
     "backend:watch": "ts-node-dev --respawn --transpile-only src/main.ts",
     "frontend:dev": "cd ../oauth-frontend && pnpm run dev",
     "restart:app": "concurrently \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
@@ -40,9 +41,11 @@
     "test": "jest",
     "test:e2e": "jest --config jest-e2e.json",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
-    "migration:generate": "pnpm run typeorm -- migration:generate -d src/config/datasource.ts src/migrations/InitialMigration",
-    "migration:run": "pnpm run typeorm -- migration:run      -d src/config/datasource.ts",
-    "migration:revert": "pnpm run typeorm -- migration:revert   -d src/config/datasource.ts"
+    "migration:show": "pnpm run typeorm migration:show --dataSource src/config/datasource.ts",
+    "migration:generate": "pnpm run typeorm migration:generate --dataSource src/config/datasource.ts",
+    "migration:create": "pnpm run typeorm migration:create",
+    "migration:run": "pnpm run typeorm migration:run --dataSource src/config/datasource.ts",
+    "migration:revert": "pnpm run typeorm migration:revert --dataSource src/config/datasource.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.20",
@@ -53,6 +56,8 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.1.3",
     "@nestjs/typeorm": "^11.0.0",
+    "@polkadot/api": "^15.9.2",
+    "@polkadot/keyring": "^13.4.4",
     "@polkadot/util-crypto": "^13.4.4",
     "argon2": "^0.41.1",
     "class-transformer": "^0.5.1",
@@ -101,7 +106,8 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wait-on": "^8.0.3"
   },
   "workspaces": null,
   "configs": {
@@ -115,9 +121,9 @@
     "ci": null
   },
   "summary": {
-    "total_files": 84,
-    "code_files": 41,
-    "test_files": 8,
+    "total_files": 91,
+    "code_files": 47,
+    "test_files": 9,
     "doc_files": 1
   },
   "src": {
@@ -157,18 +163,24 @@
       "migrations/1717082639999-InitialMigration.ts",
       "migrations/1717082640000-AddGoogleFields.ts",
       "migrations/1717082640001-AddTransactionsTable.ts",
+      "migrations/1746191854711-AddSubstratePublicKey.ts",
       "modules/auth.module.ts",
       "modules/ethereum.module.ts",
+      "modules/substrate.module.ts",
       "modules/users.module.ts",
+      "modules/wallet.module.ts",
       "services/auth.service.spec.ts",
       "services/auth.service.ts",
       "services/ethereum.service.spec.ts",
       "services/ethereum.service.ts",
       "services/real-vault.service.spec.ts",
+      "services/substrate.service.spec.ts",
+      "services/substrate.service.ts",
       "services/users.service.spec.ts",
       "services/users.service.ts",
       "services/vault.service.spec.ts",
-      "services/vault.service.ts"
+      "services/vault.service.ts",
+      "services/wallet.interface.ts"
     ]
   },
   "file_metrics": {
@@ -183,9 +195,9 @@
       "last_modified": "2025-04-27T18:03:05.451925"
     },
     "docker-compose.yml": {
-      "size_bytes": 1342,
+      "size_bytes": 1651,
       "lines": null,
-      "last_modified": "2025-04-29T17:44:05.051199"
+      "last_modified": "2025-05-03T08:53:26.801265"
     },
     "jest-e2e.json": {
       "size_bytes": 368,
@@ -198,24 +210,24 @@
       "last_modified": "2025-04-17T13:57:54.669720"
     },
     "package.json": {
-      "size_bytes": 3583,
-      "lines": 109,
-      "last_modified": "2025-04-29T11:46:59.245734"
+      "size_bytes": 3753,
+      "lines": 114,
+      "last_modified": "2025-05-03T08:42:19.478722"
     },
     "pnpm-lock.yaml": {
-      "size_bytes": 271565,
+      "size_bytes": 281677,
       "lines": null,
-      "last_modified": "2025-04-29T11:46:59.251427"
+      "last_modified": "2025-05-03T08:40:23.144309"
     },
     "project_overview.json": {
-      "size_bytes": 14363,
-      "lines": 470,
-      "last_modified": "2025-04-29T13:07:55.447406"
+      "size_bytes": 14163,
+      "lines": 480,
+      "last_modified": "2025-04-30T13:50:28.438389"
     },
     "src/app.module.ts": {
-      "size_bytes": 1130,
-      "lines": 31,
-      "last_modified": "2025-04-29T17:55:57.604556"
+      "size_bytes": 1447,
+      "lines": 40,
+      "last_modified": "2025-05-02T19:37:02.647082"
     },
     "src/auth/google.strategy.ts": {
       "size_bytes": 2452,
@@ -240,12 +252,12 @@
     "src/config/database.config.ts": {
       "size_bytes": 671,
       "lines": 19,
-      "last_modified": "2025-04-23T16:53:09.945565"
+      "last_modified": "2025-05-02T14:07:20.874549"
     },
     "src/config/datasource.ts": {
-      "size_bytes": 1402,
-      "lines": 41,
-      "last_modified": "2025-04-29T11:46:59.257145"
+      "size_bytes": 1399,
+      "lines": 40,
+      "last_modified": "2025-05-02T17:42:55.012573"
     },
     "src/config/vault.config.ts": {
       "size_bytes": 1013,
@@ -253,9 +265,9 @@
       "last_modified": "2025-04-23T16:53:09.946724"
     },
     "src/controllers/auth.controller.spec.ts": {
-      "size_bytes": 3834,
-      "lines": 132,
-      "last_modified": "2025-04-23T11:47:03.078671"
+      "size_bytes": 3865,
+      "lines": 133,
+      "last_modified": "2025-05-02T20:03:44.929737"
     },
     "src/controllers/auth.controller.ts": {
       "size_bytes": 6402,
@@ -263,19 +275,19 @@
       "last_modified": "2025-04-26T21:10:19.256418"
     },
     "src/controllers/ethereum.controller.spec.ts": {
-      "size_bytes": 8081,
-      "lines": 259,
-      "last_modified": "2025-04-23T16:53:09.948376"
+      "size_bytes": 8108,
+      "lines": 260,
+      "last_modified": "2025-05-02T20:16:16.740329"
     },
     "src/controllers/ethereum.controller.ts": {
-      "size_bytes": 4959,
+      "size_bytes": 4946,
       "lines": 145,
-      "last_modified": "2025-04-26T18:54:20.630561"
+      "last_modified": "2025-05-02T20:14:08.828554"
     },
     "src/controllers/users.controller.spec.ts": {
-      "size_bytes": 3674,
-      "lines": 105,
-      "last_modified": "2025-04-29T13:07:55.449293"
+      "size_bytes": 3705,
+      "lines": 106,
+      "last_modified": "2025-05-02T20:04:59.045700"
     },
     "src/controllers/users.controller.ts": {
       "size_bytes": 2912,
@@ -298,9 +310,9 @@
       "last_modified": "2025-04-21T11:47:10.475791"
     },
     "src/dto/transfer.dto.ts": {
-      "size_bytes": 1098,
-      "lines": 49,
-      "last_modified": "2025-04-23T16:53:09.951476"
+      "size_bytes": 885,
+      "lines": 34,
+      "last_modified": "2025-05-02T20:13:34.817836"
     },
     "src/entities/transaction.entity.ts": {
       "size_bytes": 497,
@@ -308,9 +320,9 @@
       "last_modified": "2025-04-23T16:53:09.952518"
     },
     "src/entities/user.entity.ts": {
-      "size_bytes": 640,
-      "lines": 25,
-      "last_modified": "2025-04-11T01:45:57.533403"
+      "size_bytes": 795,
+      "lines": 33,
+      "last_modified": "2025-05-02T13:54:31.134101"
     },
     "src/main.ts": {
       "size_bytes": 2035,
@@ -332,25 +344,40 @@
       "lines": 21,
       "last_modified": "2025-04-23T16:53:09.953669"
     },
+    "src/migrations/1746191854711-AddSubstratePublicKey.ts": {
+      "size_bytes": 1900,
+      "lines": 37,
+      "last_modified": "2025-05-02T17:27:09.029150"
+    },
     "src/modules/auth.module.ts": {
       "size_bytes": 1315,
       "lines": 36,
       "last_modified": "2025-04-26T21:10:19.259357"
     },
     "src/modules/ethereum.module.ts": {
-      "size_bytes": 866,
-      "lines": 22,
-      "last_modified": "2025-04-26T15:50:30.270413"
+      "size_bytes": 897,
+      "lines": 23,
+      "last_modified": "2025-04-30T14:10:18.511058"
+    },
+    "src/modules/substrate.module.ts": {
+      "size_bytes": 613,
+      "lines": 16,
+      "last_modified": "2025-05-02T19:29:59.105470"
     },
     "src/modules/users.module.ts": {
-      "size_bytes": 1397,
-      "lines": 35,
-      "last_modified": "2025-04-23T16:53:09.956141"
+      "size_bytes": 1464,
+      "lines": 37,
+      "last_modified": "2025-05-02T19:36:30.410917"
+    },
+    "src/modules/wallet.module.ts": {
+      "size_bytes": 1138,
+      "lines": 31,
+      "last_modified": "2025-05-02T19:44:34.033456"
     },
     "src/services/auth.service.spec.ts": {
-      "size_bytes": 2298,
-      "lines": 81,
-      "last_modified": "2025-04-10T18:30:38.029897"
+      "size_bytes": 2329,
+      "lines": 82,
+      "last_modified": "2025-05-02T20:05:36.060379"
     },
     "src/services/auth.service.ts": {
       "size_bytes": 1522,
@@ -358,29 +385,39 @@
       "last_modified": "2025-04-26T13:50:33.267152"
     },
     "src/services/ethereum.service.spec.ts": {
-      "size_bytes": 5747,
-      "lines": 156,
-      "last_modified": "2025-04-26T18:31:21.342099"
+      "size_bytes": 6639,
+      "lines": 174,
+      "last_modified": "2025-04-30T14:10:18.495927"
     },
     "src/services/ethereum.service.ts": {
-      "size_bytes": 4415,
-      "lines": 106,
-      "last_modified": "2025-04-26T18:49:35.645087"
+      "size_bytes": 6368,
+      "lines": 161,
+      "last_modified": "2025-05-02T19:02:52.636944"
     },
     "src/services/real-vault.service.spec.ts": {
-      "size_bytes": 1777,
-      "lines": 49,
-      "last_modified": "2025-04-26T17:35:17.389449"
+      "size_bytes": 1759,
+      "lines": 50,
+      "last_modified": "2025-04-30T14:10:18.511058"
+    },
+    "src/services/substrate.service.spec.ts": {
+      "size_bytes": 4656,
+      "lines": 128,
+      "last_modified": "2025-05-02T19:22:02.886785"
+    },
+    "src/services/substrate.service.ts": {
+      "size_bytes": 4115,
+      "lines": 99,
+      "last_modified": "2025-05-02T20:10:13.389432"
     },
     "src/services/users.service.spec.ts": {
-      "size_bytes": 9855,
-      "lines": 264,
-      "last_modified": "2025-04-29T18:47:14.038219"
+      "size_bytes": 9815,
+      "lines": 270,
+      "last_modified": "2025-05-02T20:45:44.788286"
     },
     "src/services/users.service.ts": {
-      "size_bytes": 10176,
-      "lines": 272,
-      "last_modified": "2025-04-30T11:53:16.555830"
+      "size_bytes": 9779,
+      "lines": 286,
+      "last_modified": "2025-05-02T20:45:44.837414"
     },
     "src/services/vault.service.spec.ts": {
       "size_bytes": 4128,
@@ -392,10 +429,15 @@
       "lines": 142,
       "last_modified": "2025-04-29T17:51:21.014225"
     },
+    "src/services/wallet.interface.ts": {
+      "size_bytes": 1117,
+      "lines": 24,
+      "last_modified": "2025-05-02T20:45:44.810291"
+    },
     "test/auth.e2e-spec.ts": {
-      "size_bytes": 4642,
-      "lines": 147,
-      "last_modified": "2025-04-29T13:07:55.453269"
+      "size_bytes": 4673,
+      "lines": 148,
+      "last_modified": "2025-05-02T20:06:38.405225"
     },
     "test/jest-e2e.json": {
       "size_bytes": 206,
@@ -413,9 +455,9 @@
       "last_modified": "2025-04-29T13:08:08.863064"
     },
     "test/vault.e2e-spec.ts": {
-      "size_bytes": 3077,
-      "lines": 80,
-      "last_modified": "2025-04-29T18:54:34.845886"
+      "size_bytes": 3129,
+      "lines": 84,
+      "last_modified": "2025-04-30T14:08:25.724228"
     },
     "tsconfig.build.json": {
       "size_bytes": 188,
@@ -451,9 +493,15 @@
       "src/services/ethereum.service.ts",
       "src/controllers/ethereum.controller.ts",
       "src/entities/transaction.entity.ts",
+      "src/entities/user.entity.ts",
       "src/modules/users.module.ts",
       "src/services/vault.service.ts",
       "src/config/vault.config.ts"
+    ],
+    "src/modules/substrate.module.ts": [
+      "src/config/vault.config.ts",
+      "src/services/vault.service.ts",
+      "src/services/substrate.service.ts"
     ],
     "src/modules/users.module.ts": [
       "src/entities/user.entity.ts",
@@ -463,7 +511,17 @@
       "src/services/auth.service.ts",
       "src/auth/local.strategy.ts",
       "src/config/vault.config.ts",
-      "src/modules/ethereum.module.ts"
+      "src/modules/ethereum.module.ts",
+      "src/modules/wallet.module.ts"
+    ],
+    "src/modules/wallet.module.ts": [
+      "src/config/vault.config.ts",
+      "src/services/vault.service.ts",
+      "src/modules/ethereum.module.ts",
+      "src/modules/substrate.module.ts",
+      "src/services/substrate.service.ts",
+      "src/services/wallet.interface.ts",
+      "src/services/ethereum.service.ts"
     ]
   },
   "tests": [
@@ -473,6 +531,7 @@
     "src/services/auth.service.spec.ts",
     "src/services/ethereum.service.spec.ts",
     "src/services/real-vault.service.spec.ts",
+    "src/services/substrate.service.spec.ts",
     "src/services/users.service.spec.ts",
     "src/services/vault.service.spec.ts"
   ],

@@ -37,9 +37,9 @@ export class SubstrateService implements IWalletService, OnModuleInit {
   /**
    * Generates a new SR25519 key pair, stores the mnemonic in Vault, and returns the SS58 address.
    * @param {string} userId - The ID of the user for whom the wallet is generated.
-   * @returns {Promise<{ address: string }>} A promise that resolves to an object containing the generated address.
+   * @returns {Promise<{ address: string; privateKey: string }>} A promise that resolves to an object containing the generated address and privateKey.
    */
-  async generateWallet(userId: string): Promise<{ address: string }> {
+  async generateWallet(userId: string): Promise<{ address: string; privateKey: string }> {
     const mnemonic = mnemonicGenerate()
     const keyring = new Keyring({ type: 'sr25519' })
     const pair = keyring.addFromUri(mnemonic)
@@ -50,7 +50,7 @@ export class SubstrateService implements IWalletService, OnModuleInit {
     await this.vaultService.storeSecret(`substrate/${userId}`, { mnemonic })
 
     this.logger.log(`Generated Substrate wallet for user ${userId}: ${address}`)
-    return { address }
+    return { address, privateKey: mnemonic }
   }
 
   /**
@@ -87,7 +87,8 @@ export class SubstrateService implements IWalletService, OnModuleInit {
           return reject(new BadRequestException(message))
         }
         if (status.isInBlock) {
-          this.logger.log(`Transfer included in block ${status.asInBlock.toHex()}`)
+          const blockHash = status.asInBlock
+          this.logger.log(`Transfer included in block ${blockHash}`)
           return resolve({ hash: txHash.toHex() })
         }
       }).catch(err => {
