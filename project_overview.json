@@ -202,7 +202,7 @@
     "jest-e2e.json": {
       "size_bytes": 368,
       "lines": 10,
-      "last_modified": "2025-04-29T11:46:59.243925"
+      "last_modified": "2025-05-03T13:01:22.215868"
     },
     "nest-cli.json": {
       "size_bytes": 244,
@@ -220,9 +220,9 @@
       "last_modified": "2025-05-03T08:40:23.144309"
     },
     "project_overview.json": {
-      "size_bytes": 14163,
-      "lines": 480,
-      "last_modified": "2025-04-30T13:50:28.438389"
+      "size_bytes": 16224,
+      "lines": 539,
+      "last_modified": "2025-05-03T10:47:19.603696"
     },
     "src/app.module.ts": {
       "size_bytes": 1447,
@@ -277,7 +277,7 @@
     "src/controllers/ethereum.controller.spec.ts": {
       "size_bytes": 8108,
       "lines": 260,
-      "last_modified": "2025-05-02T20:16:16.740329"
+      "last_modified": "2025-05-03T13:01:22.216855"
     },
     "src/controllers/ethereum.controller.ts": {
       "size_bytes": 4946,
@@ -390,9 +390,9 @@
       "last_modified": "2025-04-30T14:10:18.495927"
     },
     "src/services/ethereum.service.ts": {
-      "size_bytes": 6368,
+      "size_bytes": 6416,
       "lines": 161,
-      "last_modified": "2025-05-02T19:02:52.636944"
+      "last_modified": "2025-05-03T10:57:15.669810"
     },
     "src/services/real-vault.service.spec.ts": {
       "size_bytes": 1759,
@@ -400,14 +400,14 @@
       "last_modified": "2025-04-30T14:10:18.511058"
     },
     "src/services/substrate.service.spec.ts": {
-      "size_bytes": 4656,
-      "lines": 128,
-      "last_modified": "2025-05-02T19:22:02.886785"
+      "size_bytes": 4908,
+      "lines": 142,
+      "last_modified": "2025-05-03T10:50:13.912268"
     },
     "src/services/substrate.service.ts": {
-      "size_bytes": 4115,
-      "lines": 99,
-      "last_modified": "2025-05-02T20:10:13.389432"
+      "size_bytes": 4223,
+      "lines": 100,
+      "last_modified": "2025-05-03T10:51:19.843577"
     },
     "src/services/users.service.spec.ts": {
       "size_bytes": 9815,
@@ -437,7 +437,7 @@
     "test/auth.e2e-spec.ts": {
       "size_bytes": 4673,
       "lines": 148,
-      "last_modified": "2025-05-02T20:06:38.405225"
+      "last_modified": "2025-05-03T13:01:22.218854"
     },
     "test/jest-e2e.json": {
       "size_bytes": 206,
@@ -447,17 +447,17 @@
     "test/jest-e2e.setup.ts": {
       "size_bytes": 481,
       "lines": 9,
-      "last_modified": "2025-04-29T11:46:59.265458"
+      "last_modified": "2025-05-03T13:01:23.496411"
     },
     "test/users.e2e-spec.ts": {
       "size_bytes": 3376,
       "lines": 108,
-      "last_modified": "2025-04-29T13:08:08.863064"
+      "last_modified": "2025-05-03T13:01:22.219852"
     },
     "test/vault.e2e-spec.ts": {
-      "size_bytes": 3129,
+      "size_bytes": 3213,
       "lines": 84,
-      "last_modified": "2025-04-30T14:08:25.724228"
+      "last_modified": "2025-05-03T13:01:23.797486"
     },
     "tsconfig.build.json": {
       "size_bytes": 188,

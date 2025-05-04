@@ -12,6 +12,8 @@ import { CreateUserDto } from '../dto/create-user.dto'
 import { User } from '../entities/user.entity'
 import { UsersService } from './users.service'
 import { VaultService } from './vault.service'
+import { EthereumService } from './ethereum.service'
+import { SubstrateService } from './substrate.service'
 
 // Mocks
 jest.mock('argon2', () => ({
@@ -34,10 +36,15 @@ describe('UsersService', () => {
   let userRepository: jest.Mocked<Repository<User>>
   const configServiceMock = { get: jest.fn(() => 'someValue') }
 
-  // Mock for WalletService
-  const walletMock = {
-    generateWallet: jest.fn().mockResolvedValue({ address: '0xabc', privateKey: '0xprivateKey' }),
-    sendTokens: jest.fn().mockResolvedValue({ hash: '0xdeadbeef' }),
+  // Mock for EthereumService
+  const ethereumServiceMock = {
+    generateWallet: jest.fn().mockResolvedValue({ address: '0xabc', privateKey: '0xpriv' }),
+    sendNative: jest.fn().mockResolvedValue({ hash: '0xhash' }),
+  }
+
+  // Mock for SubstrateService
+  const substrateServiceMock = {
+    generateWallet: jest.fn().mockResolvedValue({ address: '5xyz...', privateKey: 'mnemonic' }),
   }
 
   const mockUser: User = {
@@ -70,7 +77,8 @@ describe('UsersService', () => {
         { provide: VaultService, useValue: vaultService },
         { provide: ConfigService, useValue: configServiceMock },
         { provide: getRepositoryToken(User), useValue: userRepository },
-        { provide: 'WalletService', useValue: walletMock },
+        { provide: EthereumService, useValue: ethereumServiceMock },
+        { provide: SubstrateService, useValue: substrateServiceMock },
       ],
     }).compile()
 
@@ -84,25 +92,41 @@ describe('UsersService', () => {
   describe('registerUser', () => {
     const dto: CreateUserDto = { email: 'test@example.com', password: 'password123' }
 
-    it('registers a new user successfully', async () => {
+    it('registers a new user successfully (default chain)', async () => {
       userRepository.findOne.mockResolvedValue(null)
       const result = await service.registerUser(dto)
 
       expect(argon2.hash).toHaveBeenCalledWith(dto.password)
-      expect(walletMock.generateWallet).toHaveBeenCalledWith(dto.email)
+      expect(ethereumServiceMock.generateWallet).toHaveBeenCalledWith(dto.email)
       expect(userRepository.create).toHaveBeenCalledWith({
         email: dto.email,
         password: 'hashedPassword',
         publicKey: '0xabc',
       })
       expect(userRepository.save).toHaveBeenCalledWith(mockUser)
-      expect(vaultService.storeSecret).toHaveBeenCalledWith(`ethereum/${mockUser.id}`, {
-        privateKey: '0xprivateKey',
-      })
       expect(result).toEqual({
         id: mockUser.id,
         email: mockUser.email,
         publicKey: '0xabc',
+      })
+    })
+
+    it('registers a new user successfully (substrate chain)', async () => {
+      userRepository.findOne.mockResolvedValue(null)
+      const result = await service.registerUser(dto, 'substrate')
+
+      expect(argon2.hash).toHaveBeenCalledWith(dto.password)
+      expect(substrateServiceMock.generateWallet).toHaveBeenCalledWith(mockUser.id)
+      expect(userRepository.create).toHaveBeenCalledWith({
+        email: dto.email,
+        password: 'hashedPassword',
+        substratePublicKey: '5xyz...',
+      })
+      expect(userRepository.save).toHaveBeenCalledWith(mockUser)
+      expect(result).toEqual({
+        id: mockUser.id,
+        email: mockUser.email,
+        publicKey: '5xyz...',
       })
     })
 
@@ -265,6 +289,6 @@ describe('UsersService', () => {
   it('should call generateWallet with email', async () => {
     const dto = { email: 'test@example.com', password: 'password123' }
     await service.registerUser(dto)
-    expect(walletMock.generateWallet).toHaveBeenCalledWith(dto.email)
+    expect(ethereumServiceMock.generateWallet).toHaveBeenCalledWith(dto.email)
   })
 })

@@ -1,22 +1,21 @@
 import {
-  Injectable,
-  Logger,
-  InternalServerErrorException,
   BadRequestException,
   ConflictException,
-  Inject,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
-import { User } from '../entities/user.entity'
-import { CreateUserDto } from '../dto/create-user.dto'
-import { VaultService } from './vault.service'
-import { Wallet } from 'ethers'
-import * as argon2 from 'argon2'
-import { encodeAddress } from '@polkadot/util-crypto'
-import { EthereumService } from './ethereum.service'
 import { ConfigService } from '@nestjs/config'
-import { IWalletService } from './wallet.interface'
+import { InjectRepository } from '@nestjs/typeorm'
+import { encodeAddress } from '@polkadot/util-crypto'
+import * as argon2 from 'argon2'
+import { Wallet } from 'ethers'
+import { Repository } from 'typeorm'
+import { CreateUserDto } from '../dto/create-user.dto'
+import { User } from '../entities/user.entity'
+import { EthereumService } from './ethereum.service'
+import { SubstrateService } from './substrate.service'
+import { VaultService } from './vault.service'
 
 /**
  * Data returned from Google OAuth.
@@ -43,7 +42,7 @@ interface AuthenticatedUser {
   /** Display name, if any */
   displayName: string | null
   /** User's Ethereum public address */
-  publicKey: string
+  publicKey: string | null
 }
 
 /**
@@ -53,72 +52,76 @@ interface AuthenticatedUser {
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name)
-  private ethereumService: EthereumService | null = null
+  private readonly ethereumService: EthereumService
+  private readonly substrateService: SubstrateService
 
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly vaultService: VaultService,
     private readonly configService: ConfigService,
-    @Inject('WalletService')
-    private readonly wallet: IWalletService
-  ) {}
-
-  /**
-   * Injects the EthereumService instance for blockchain operations.
-   * @param service - Initialized EthereumService
-   */
-  setEthereumService(service: EthereumService) {
-    this.ethereumService = service
+    ethereumService: EthereumService,
+    substrateService: SubstrateService
+  ) {
+    this.ethereumService = ethereumService
+    this.substrateService = substrateService
   }
 
   /**
-   * Registers a new user, hashes their password, generates an Ethereum wallet,
+   * Registers a new user, hashes their password, generates an Ethereum or Substrate wallet,
    * and stores the private key in the Vault.
    * @param createUserDto - DTO containing email and password
+   * @param chain - The blockchain type ('ethereum' or 'substrate')
    * @returns Object with user id, email, and publicKey
    * @throws ConflictException if user already exists
    * @throws InternalServerErrorException on vault or DB errors
    */
   async registerUser(
-    dto: CreateUserDto
-  ): Promise<{ id: string; email: string; publicKey: string }> {
-    const { email, password } = dto
+    dto: CreateUserDto,
+    chain: 'ethereum' | 'substrate' = 'ethereum'
+  ): Promise<{
+    id: string
+    email: string
+    publicKey: string | null
+    substratePublicKey: string | null
+  }> {
+    // 1) Проверка и хеширование
+    const existing = await this.userRepository.findOne({ where: { email: dto.email } })
+    if (existing) {
+      throw new ConflictException(`User with email ${dto.email} already exists`)
+    }
+    const hashed = await argon2.hash(dto.password)
 
-    // Check if user exists
-    const existingUser = await this.userRepository.findOne({ where: { email } })
-    if (existingUser) {
-      throw new ConflictException(`User with email ${email} already exists`)
+    // 2) Создаём и сразу сохраняем, чтобы получить id
+    const user = this.userRepository.create({ email: dto.email, password: hashed })
+    await this.userRepository.save(user) // Сохраняем, чтобы получить user.id
+
+    // 3) Генерируем ключи
+    let ethAddr: string | null = null
+    let subAddr: string | null = null
+
+    if (chain === 'substrate') {
+      const { address, privateKey } = await this.substrateService.generateWallet(user.id)
+      subAddr = address
+      user.substratePublicKey = address
+      // Сохраняем приватный ключ в Vault
+      await this.vaultService.storeSecret(`substrate/${user.id}`, { privateKey })
+    } else {
+      const { address, privateKey } = await this.ethereumService.generateWallet(dto.email) // Используем email
+      ethAddr = address
+      user.publicKey = address
+      // Сохраняем приватный ключ в Vault
+      await this.vaultService.storeSecret(`ethereum/${user.id}`, { privateKey })
     }
 
-    // Hash password
-    const hashedPassword = await argon2.hash(password)
+    // 4) Обновляем запись одним save'ом
+    await this.userRepository.save(user)
 
-    try {
-      // Generate wallet using email
-      const { address: publicKey, privateKey } = await this.wallet.generateWallet(email)
-
-      // Create user entity
-      const user = this.userRepository.create({
-        email,
-        password: hashedPassword,
-        publicKey,
-      })
-
-      // Save user to database
-      await this.userRepository.save(user)
-
-      // Store private key in Vault
-      await this.vaultService.storeSecret(`ethereum/${user.id}`, {
-        privateKey,
-      })
-
-      this.logger.log(`Registered user ${email}`)
-      return { id: user.id, email: user.email, publicKey }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      this.logger.error(`Failed to register user ${email}: ${errorMessage}`)
-      throw new InternalServerErrorException(`Failed to register user: ${errorMessage}`)
+    return {
+      id: user.id,
+      email: user.email,
+      publicKey: ethAddr,
+      substratePublicKey: subAddr,
     }
   }
 
@@ -179,7 +182,7 @@ export class UsersService {
     if (!user) {
       throw new BadRequestException(`User ${email} not found`)
     }
-    return this.convertToSubstrateAddress(user.publicKey)
+    return this.convertToSubstrateAddress(user.publicKey || '')
   }
 
   /**
@@ -273,7 +276,7 @@ export class UsersService {
         email: user.email,
         googleId: user.googleId,
         displayName: user.displayName,
-        publicKey: user.publicKey,
+        publicKey: user.publicKey || '',
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)

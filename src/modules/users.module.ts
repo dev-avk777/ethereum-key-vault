@@ -1,17 +1,17 @@
 import { forwardRef, Module } from '@nestjs/common'
-import { TypeOrmModule } from '@nestjs/typeorm'
-import { User } from '../entities/user.entity'
-import { UsersService } from '../services/users.service'
-import { VaultServiceProvider, VaultService } from '../services/vault.service'
-import { UsersController } from '../controllers/users.controller'
-import { AuthService } from '../services/auth.service'
-import { LocalStrategy } from '../auth/local.strategy'
-import { PassportModule } from '@nestjs/passport'
-import { JwtModule } from '@nestjs/jwt'
 import { ConfigModule, ConfigService } from '@nestjs/config'
+import { JwtModule } from '@nestjs/jwt'
+import { PassportModule } from '@nestjs/passport'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { LocalStrategy } from '../auth/local.strategy'
 import { VaultConfigModule } from '../config/vault.config'
+import { UsersController } from '../controllers/users.controller'
+import { User } from '../entities/user.entity'
+import { AuthService } from '../services/auth.service'
+import { UsersService } from '../services/users.service'
+import { VaultService, VaultServiceProvider } from '../services/vault.service'
 import { EthereumModule } from './ethereum.module'
-import { WalletModule } from './wallet.module'
+import { SubstrateModule } from './substrate.module'
 
 @Module({
   imports: [
@@ -20,7 +20,7 @@ import { WalletModule } from './wallet.module'
     ConfigModule,
     VaultConfigModule,
     forwardRef(() => EthereumModule),
-    WalletModule,
+    forwardRef(() => SubstrateModule),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

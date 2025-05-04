@@ -13,7 +13,14 @@ import { AuthGuard } from '@nestjs/passport'
 import { JwtService } from '@nestjs/jwt'
 import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam } from '@nestjs/swagger'
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+  ApiParam,
+  ApiProperty,
+} from '@nestjs/swagger'
 import { UsersService } from '../services/users.service'
 import { User } from '../entities/user.entity'
 import { GetUser } from '../decorators/get-user.decorator'
@@ -24,6 +31,15 @@ interface AuthenticatedUser {
   googleId: string
   displayName: string
   publicKey: string
+}
+
+// Определяем класс для ответа пользователя
+class UserResponse {
+  @ApiProperty() id: string
+  @ApiProperty() email: string
+  @ApiProperty({ nullable: true }) displayName?: string | null
+  @ApiProperty({ description: 'Unified public key (Ethereum or Substrate)', nullable: true })
+  publicKey: string | null
 }
 
 @ApiTags('auth')
@@ -177,17 +193,20 @@ export class AuthController {
   @ApiBearerAuth()
   @Get('user/:id')
   @UseGuards(AuthGuard('jwt'))
-  async getUserById(@Param('id') id: string, @GetUser() requestUser: User) {
-    this.logger.log(`[Auth] GET /auth/user/${id} invoked by user: ${requestUser.email}`)
-
+  async getUser(@Param('id') id: string): Promise<UserResponse> {
     const user = await this.usersService.findById(id)
-
     if (!user) {
-      this.logger.warn(`[Auth] User with ID ${id} not found`)
-      throw new NotFoundException(`User with ID ${id} not found`)
+      throw new NotFoundException()
     }
 
-    this.logger.log(`[Auth] Retrieved user data for ID: ${id}`)
-    return user
+    // Если есть substratePublicKey — берём его, иначе ethereum publicKey
+    const unifiedKey = user.substratePublicKey ?? user.publicKey
+
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName ?? null,
+      publicKey: unifiedKey,
+    }
   }
 }

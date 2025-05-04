@@ -11,8 +11,8 @@ export class User {
   @Column({ nullable: true, type: 'varchar' })
   password: string | null
 
-  @Column({ unique: true, type: 'varchar' })
-  publicKey: string
+  @Column({ unique: true, type: 'varchar', nullable: true })
+  publicKey: string | null
 
   @Column({
     nullable: true,

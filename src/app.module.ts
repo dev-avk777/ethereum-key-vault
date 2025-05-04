@@ -8,7 +8,6 @@ import { SubstrateModule } from './modules/substrate.module'
 import { databaseConfig } from './config/database.config'
 import { VaultConfigModule } from './config/vault.config'
 import { VaultServiceProvider } from './services/vault.service'
-import { WalletModule } from './modules/wallet.module'
 
 @Module({
   imports: [
@@ -28,8 +27,6 @@ import { WalletModule } from './modules/wallet.module'
     EthereumModule,
     // Connect Substrate module
     SubstrateModule,
-    // Also include WalletModule
-    WalletModule,
   ],
   controllers: [],
   providers: [
