@@ -171,20 +171,6 @@ export class UsersService {
   }
 
   /**
-   * Retrieves the Substrate address for a user by their email.
-   * @param email - User's email
-   * @returns Substrate-compatible address
-   * @throws BadRequestException if user not found
-   */
-  async getSubstrateAddress(email: string): Promise<string> {
-    const user = await this.findByEmail(email)
-    if (!user) {
-      throw new BadRequestException(`User ${email} not found`)
-    }
-    return this.convertToSubstrateAddress(user.publicKey || '')
-  }
-
-  /**
    * Sends native Ethereum tokens from a user's wallet to another address.
    * @param email - Sender's email
    * @param toAddress - Recipient's Ethereum address

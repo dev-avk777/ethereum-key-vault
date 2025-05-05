@@ -13,7 +13,13 @@ import {
   ValidationPipe,
 } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+  ApiExcludeController,
+} from '@nestjs/swagger'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { GetUser } from '../decorators/get-user.decorator'
@@ -26,6 +32,7 @@ import { UsersService } from '../services/users.service'
 /**
  * Controller для работы с Ethereum/Opal транзакциями и балансами
  */
+@ApiExcludeController()
 @ApiTags('ethereum')
 @Controller('ethereum')
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
