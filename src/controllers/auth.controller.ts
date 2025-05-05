@@ -33,7 +33,7 @@ interface AuthenticatedUser {
   publicKey: string
 }
 
-// Определяем класс для ответа пользователя
+// DTO for user response
 class UserResponse {
   @ApiProperty() id: string
   @ApiProperty() email: string
@@ -53,6 +53,10 @@ export class AuthController {
     private readonly usersService: UsersService
   ) {}
 
+  /**
+   * Initiates Google authentication process.
+   * Redirects the user to Google for authentication.
+   */
   @ApiOperation({ summary: 'Start Google authentication' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
@@ -60,6 +64,13 @@ export class AuthController {
     this.logger.log('→ [Auth] GET /auth/google invoked; redirecting to Google')
   }
 
+  /**
+   * Handles the callback from Google OAuth after authentication.
+   * Retrieves user information and sets a JWT token in a cookie.
+   * Redirects the user to the frontend application.
+   * @param req - The request object containing user information.
+   * @param res - The response object used to set cookies and redirect.
+   */
   @ApiOperation({ summary: 'Callback from Google OAuth' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
@@ -110,51 +121,41 @@ export class AuthController {
     res.redirect(redirectUrl)
   }
 
-  @ApiOperation({
-    summary: 'Get authenticated user data',
-    description:
-      'Retrieves detailed user information using the user ID from the JWT token. The endpoint requires authentication and extracts the user ID from the token to fetch complete user data from the database. Ensure to send the authToken cookie with the request.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'User information retrieved successfully',
-    schema: {
-      example: {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        email: 'user@example.com',
-        displayName: 'John Doe',
-        publicKey: '0x1234567890abcdef',
-        googleId: 'google_id_123456',
-        createdAt: '2025-04-23T08:00:00.000Z',
-      },
-    },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized - valid JWT token is required' })
-  @ApiResponse({ status: 500, description: 'User not found or server error' })
+  /**
+   * Retrieves authenticated user data.
+   * Requires a valid JWT token to access this endpoint.
+   * @param user - The authenticated user object retrieved from the JWT token.
+   * @returns User information from the database.
+   */
+  @ApiOperation({ summary: 'Get authenticated user data' })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, type: UserResponse })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get('user-info')
   @UseGuards(AuthGuard('jwt'))
-  async getUserInfo(@GetUser() user: User) {
-    this.logger.log(`[Auth] GET /auth/user-info invoked`)
+  async getUserInfo(@GetUser() user: User): Promise<UserResponse> {
+    this.logger.log(`[Auth] GET /auth/user-info invoked for ${user.email}`)
 
-    if (!user) {
-      this.logger.error('[Auth] User not authenticated')
-      throw new InternalServerErrorException('User not authenticated')
+    const userEntity = await this.usersService.findById(user.id)
+    if (!userEntity) {
+      this.logger.error(`[Auth] User not found: ${user.id}`)
+      throw new NotFoundException()
     }
 
-    this.logger.log(`[Auth] Request from user: ${user.email}`)
-
-    const userId = user.id
-    const userInfo = await this.usersService.findById(userId)
-
-    if (!userInfo) {
-      this.logger.error(`[Auth] User with ID ${userId} not found in database`)
-      throw new InternalServerErrorException('User not found')
+    const unifiedKey = userEntity.substratePublicKey ?? userEntity.publicKey
+    return {
+      id: userEntity.id,
+      email: userEntity.email,
+      displayName: userEntity.displayName ?? null,
+      publicKey: unifiedKey,
     }
-
-    return userInfo
   }
 
+  /**
+   * Logs out the user by clearing the authToken cookie.
+   * @param res - The response object used to clear the cookie.
+   * @returns Success message.
+   */
   @ApiOperation({ summary: 'Logout (delete cookie)' })
   @Get('logout')
   logout(@Res({ passthrough: true }) res: Response) {
@@ -164,6 +165,12 @@ export class AuthController {
     return { success: true }
   }
 
+  /**
+   * Retrieves user data by ID.
+   * Requires authentication to access this endpoint.
+   * @param id - The user ID (UUID) to retrieve information for.
+   * @returns User information.
+   */
   @ApiOperation({
     summary: 'Get user data by ID',
     description: 'Retrieves user information by ID. Requires authentication.',
@@ -199,8 +206,9 @@ export class AuthController {
       throw new NotFoundException()
     }
 
-    // Если есть substratePublicKey — берём его, иначе ethereum publicKey
-    const unifiedKey = user.substratePublicKey ?? user.publicKey
+    // if user.publicKey is not null, use it as unifiedKey
+    // otherwise, use user.substratePublicKey
+    const unifiedKey = user.publicKey ?? user.substratePublicKey
 
     return {
       id: user.id,

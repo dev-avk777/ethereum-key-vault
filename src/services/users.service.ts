@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { encodeAddress } from '@polkadot/util-crypto'
 import * as argon2 from 'argon2'
-import { Wallet } from 'ethers'
 import { Repository } from 'typeorm'
 import { CreateUserDto } from '../dto/create-user.dto'
 import { User } from '../entities/user.entity'
@@ -221,69 +220,49 @@ export class UsersService {
   /**
    * Finds or creates a user based on Google OAuth data.
    * @param userData - Data returned from Google OAuth
+   * @param chain - The blockchain type ('ethereum' or 'substrate')
    * @returns AuthenticatedUser details
    * @throws BadRequestException for incomplete data or user not found
    * @throws InternalServerErrorException on vault or DB errors
    */
-  async findOrCreateFromGoogle(userData: GoogleUserData): Promise<AuthenticatedUser> {
-    if (!userData.googleId || !userData.email) {
-      this.logger.error('Incomplete user data from Google OAuth')
-      throw new BadRequestException('Incomplete user data for OAuth authentication')
+  async findOrCreateFromGoogle(
+    userData: GoogleUserData,
+    chain: 'ethereum' | 'substrate' = 'substrate'
+  ): Promise<AuthenticatedUser> {
+    let user =
+      (await this.userRepository.findOne({ where: { googleId: userData.googleId } })) ??
+      (await this.findByEmail(userData.email))
+
+    if (!user) {
+      this.logger.log(`Creating new OAuth user ${userData.email}`)
+      user = this.userRepository.create({
+        email: userData.email,
+        displayName: userData.displayName,
+        googleId: userData.googleId,
+      })
+      await this.userRepository.save(user)
+
+      // Generate wallet based on the specified chain
+      if (chain === 'substrate') {
+        const { address, privateKey } = await this.substrateService.generateWallet(user.id)
+        user.substratePublicKey = address
+        await this.vaultService.storeSecret(`substrate/${user.id}`, { privateKey })
+      } else {
+        const { address, privateKey } = await this.ethereumService.generateWallet(user.id)
+        user.publicKey = address
+        await this.vaultService.storeSecret(`ethereum/${user.id}`, { privateKey })
+      }
+      await this.userRepository.save(user)
     }
-    try {
-      let user = await this.userRepository.findOne({ where: { googleId: userData.googleId } })
-      if (!user && userData.email) {
-        user = await this.findByEmail(userData.email)
-      }
-      if (!user) {
-        this.logger.log(`Creating new user from Google OAuth: ${userData.email}`)
-        this.logger.debug(`[Wallet] Generating Ethereum wallet for ${userData.email}`)
-        const wallet = Wallet.createRandom()
-        const privateKey = wallet.privateKey
-        const publicKey = wallet.address
-        if (process.env.NODE_ENV !== 'production') {
-          this.logger.debug(`[Wallet] Generated wallet address: ${wallet.address}`)
-          this.logger.debug(`[Wallet] Private key: ${wallet.privateKey} (to be stored in Vault)`)
-        }
-        try {
-          user = this.userRepository.create({
-            email: userData.email,
-            displayName: userData.displayName,
-            googleId: userData.googleId,
-            publicKey,
-          })
-          await this.userRepository.save(user)
 
-          const vaultPath = `ethereum/${user.id}`
-          await this.vaultService.storeSecret(vaultPath, { privateKey })
-
-          this.logger.log(`Created new user from Google OAuth: ${userData.email}`)
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          this.logger.error(
-            `Failed to store private key in Vault for user ${userData.email}: ${errorMessage}`
-          )
-          throw new InternalServerErrorException('Failed to create user account')
-        }
-      } else if (!user.googleId) {
-        this.logger.log(`Linking existing user ${userData.email} with Google account`)
-        user.googleId = userData.googleId
-        user.displayName = userData.displayName
-        await this.userRepository.save(user)
-      }
-      return {
-        id: user.id,
-        email: user.email,
-        googleId: user.googleId,
-        displayName: user.displayName,
-        publicKey: user.publicKey || '',
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      this.logger.error(`Error in findOrCreateFromGoogle: ${errorMessage}`)
-      throw error instanceof BadRequestException || error instanceof InternalServerErrorException
-        ? error
-        : new InternalServerErrorException(`Authentication failed: ${errorMessage}`)
+    // Now unifiedKey is either substratePublicKey or publicKey
+    const unifiedKey = user.substratePublicKey ?? user.publicKey
+    return {
+      id: user.id,
+      email: user.email,
+      googleId: user.googleId!,
+      displayName: user.displayName!,
+      publicKey: unifiedKey!,
     }
   }
 }

@@ -40,8 +40,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   }
 
   async validate(
-    accessToken: string,
-    refreshToken: string,
+    _accessToken: string,
+    _refreshToken: string,
     profile: Profile
   ): Promise<AuthenticatedUser> {
     const { id, emails, displayName } = profile
@@ -54,12 +54,19 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const email = emails[0].value
     const initialName = displayName ?? email
 
+    // TODO: сюда можно подать параметр chain из URL,
+    //    e.g. добавить два роута /auth/google/ethereum и /auth/google/substrate
+    //    и брать chain = 'ethereum' | 'substrate' по маршруту.
+    const chain: 'ethereum' | 'substrate' = 'substrate'
     // findOrCreateFromGoogle may return user.googleId and user.displayName as string|null
-    const user = await this.usersService.findOrCreateFromGoogle({
-      googleId: id,
-      email,
-      displayName: initialName,
-    })
+    const user = await this.usersService.findOrCreateFromGoogle(
+      {
+        googleId: id,
+        email,
+        displayName: initialName,
+      },
+      chain
+    )
 
     // Convert both fields to string - either from DB or from initial values
     const finalGoogleId = user.googleId ?? id
@@ -70,7 +77,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       email: user.email,
       googleId: finalGoogleId,
       displayName: finalDisplayName,
-      publicKey: user.publicKey,
+      publicKey: user.publicKey ?? '',
     }
   }
 }
