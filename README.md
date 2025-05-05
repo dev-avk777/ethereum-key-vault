@@ -264,11 +264,15 @@ Apply database schema changes via TypeORM migrations:
    ```bash
    vault kv list secret/ethereum
    vault kv get secret/ethereum/<user-id>
+
+   vault kv list secret/substrate
+   vault kv get secret/substrate/<user-id>
    ```
 
 ---
 
 ## Working with Vault via Docker
+
 
 ```bash
 # List secret engines
@@ -286,5 +290,26 @@ docker exec -it vault vault kv delete secret/ethereum/<id>
 # Destroy specific versions
 docker exec -it vault vault kv destroy -versions=1 secret/ethereum/<id>
 ```
+
+**Substrate:**
+
+```bash
+vault kv list secret/substrate
+vault kv get secret/substrate/<user-id>
+```
+
+```bash
+# Store a mnemonic
+docker exec -it vault vault kv put secret/substrate/<id> mnemonic="phrase..."
+
+# Retrieve mnemonic only
+docker exec -it vault vault kv get -field=mnemonic secret/substrate/<id>
+
+# Delete a secret
+docker exec -it vault vault kv delete secret/substrate/<id>
+
+# Destroy specific versions
+docker exec -it vault vault kv destroy -versions=1 secret/substrate/<id>
+
 
 Enjoy secure key management! 🚀
