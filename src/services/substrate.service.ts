@@ -1,10 +1,18 @@
-import { Injectable, Logger, BadRequestException, OnModuleInit } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  OnModuleInit,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import { Keyring } from '@polkadot/keyring'
 import { mnemonicGenerate, encodeAddress } from '@polkadot/util-crypto'
 import { IWalletService } from './wallet.interface'
 import { VaultService } from './vault.service'
+import { AccountInfo } from '@polkadot/types/interfaces'
 
 @Injectable()
 /**
@@ -47,7 +55,7 @@ export class SubstrateService implements IWalletService, OnModuleInit {
     // Use ss58Prefix instead of substrateRpcUrl
     const address = encodeAddress(pair.publicKey, this.ss58Prefix)
 
-    await this.vaultService.storeSecret(`substrate/${userId}`, { mnemonic })
+    await this.vaultService.storeSecret(`substrate/${userId}`, { privateKey: mnemonic })
 
     this.logger.log(`Generated Substrate wallet for user ${userId}: ${address}`)
     return { address, privateKey: mnemonic }
@@ -59,7 +67,7 @@ export class SubstrateService implements IWalletService, OnModuleInit {
    * @param {string} to - The recipient's address.
    * @param {string} amount - The amount of tokens to send.
    * @returns {Promise<{ hash: string }>} A promise that resolves to an object containing the transaction hash.
-   * @throws {BadRequestException} If there is no mnemonic for the user or if the transfer fails.
+   * @throws {BadRequestException} If there is no privateKey in Vault for the user or if the transfer fails.
    */
   async sendTokens(userId: string, to: string, amount: string): Promise<{ hash: string }> {
     if (!this.api) {
@@ -68,12 +76,12 @@ export class SubstrateService implements IWalletService, OnModuleInit {
 
     // Retrieve mnemonic from Vault
     const secret = await this.vaultService.getSecret(`substrate/${userId}`)
-    if (!secret?.mnemonic) {
+    if (!secret?.privateKey) {
       throw new BadRequestException(`No Substrate mnemonic for user ${userId}`)
     }
 
     const keyring = new Keyring({ type: 'sr25519' })
-    const pair = keyring.addFromUri(secret.mnemonic)
+    const pair = keyring.addFromUri(secret.privateKey)
 
     const dest = to
     // If amount is a string like "1.23", Polkadot API automatically converts it
@@ -96,5 +104,43 @@ export class SubstrateService implements IWalletService, OnModuleInit {
         reject(new BadRequestException(err.message))
       })
     })
+  }
+
+  /**
+   * Returns the native token balance for the user.
+   * @param userId
+   * @throws {InternalServerErrorException} If there is an error accessing Vault
+   * @throws {NotFoundException} If there is no saved privateKey in Vault
+   */
+  async getBalance(userId: string): Promise<string> {
+    if (!this.api) {
+      await this.onModuleInit()
+    }
+
+    let secret: { privateKey?: string } | null
+    try {
+      secret = await this.vaultService.getSecret(`substrate/${userId}`)
+    } catch (err) {
+      const errorMessage = (err as Error).message
+      this.logger.error(`Vault error for user ${userId}: ${errorMessage}`)
+      if (errorMessage.includes('Status 404')) {
+        throw new NotFoundException('No saved mnemonic for user')
+      }
+      throw new InternalServerErrorException('Error accessing Vault')
+    }
+
+    // If nothing is found in Vault, return a clear 404
+    if (!secret || !secret.privateKey) {
+      throw new NotFoundException(`No saved mnemonic for user ${userId}`)
+    }
+
+    const keyring = new Keyring({ type: 'sr25519' })
+    const pair = keyring.addFromUri(secret.privateKey)
+
+    const account = (await this.api.query.system.account(pair.address)) as unknown as AccountInfo
+    const {
+      data: { free },
+    } = account
+    return free.toString()
   }
 }

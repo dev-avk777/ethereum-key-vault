@@ -11,7 +11,7 @@ import { EthereumModule } from './modules/ethereum.module'
 
 @Module({
   imports: [
-    // Load environment variables and make them globally available
+    //  and make them globally available
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env', // Explicitly specify path to .env file
