@@ -13,6 +13,7 @@ import { mnemonicGenerate, encodeAddress } from '@polkadot/util-crypto'
 import { IWalletService } from './wallet.interface'
 import { VaultService } from './vault.service'
 import { AccountInfo } from '@polkadot/types/interfaces'
+import { formatBalance, parseBalance } from '../utils/substrate.utils'
 
 @Injectable()
 /**
@@ -74,35 +75,37 @@ export class SubstrateService implements IWalletService, OnModuleInit {
       await this.onModuleInit()
     }
 
-    // Retrieve mnemonic from Vault
     const secret = await this.vaultService.getSecret(`substrate/${userId}`)
     if (!secret?.privateKey) {
-      throw new BadRequestException(`No Substrate mnemonic for user ${userId}`)
+      throw new BadRequestException(`No private key for user ${userId}`)
     }
 
     const keyring = new Keyring({ type: 'sr25519' })
     const pair = keyring.addFromUri(secret.privateKey)
-
-    const dest = to
-    // If amount is a string like "1.23", Polkadot API automatically converts it
-    const tx = this.api.tx.balances.transfer(dest, amount)
+    const amountPlanck = parseBalance(this.api, amount)
+    this.logger.debug(`Has api.tx.unique.transfer? ${!!this.api.tx.unique?.transfer}`)
+    this.logger.debug(`Has api.tx.tokens.transfer? ${!!this.api.tx.tokens?.transfer}`)
+    this.logger.debug(`Has api.tx.balances.transfer? ${!!this.api.tx.balances?.transfer}`)
+    let tx
+    if (this.api.tx.unique?.transfer) {
+      // если у вас кастомная паллета unique:
+      tx = this.api.tx.unique.transfer(to, amountPlanck)
+    } else if (this.api.tx.tokens?.transfer) {
+      // ORML-паллета tokens: первый аргумент — идентификатор валюты, чаще всего строка "OPAL"
+      tx = this.api.tx.tokens.transfer('OPAL', to, amountPlanck)
+    } else {
+      throw new InternalServerErrorException('No suitable transfer method found on this chain')
+    }
 
     return new Promise((resolve, reject) => {
       tx.signAndSend(pair, ({ status, dispatchError, txHash }) => {
         if (dispatchError) {
-          const message = dispatchError.toString()
-          this.logger.error(`Transfer failed: ${message}`)
-          return reject(new BadRequestException(message))
+          return reject(new BadRequestException(dispatchError.toString()))
         }
         if (status.isInBlock) {
-          const blockHash = status.asInBlock
-          this.logger.log(`Transfer included in block ${blockHash}`)
-          return resolve({ hash: txHash.toHex() })
+          resolve({ hash: txHash.toHex() })
         }
-      }).catch(err => {
-        this.logger.error(`sendTokens error: ${err.message}`)
-        reject(new BadRequestException(err.message))
-      })
+      }).catch(err => reject(new BadRequestException(err.message)))
     })
   }
 
@@ -138,9 +141,7 @@ export class SubstrateService implements IWalletService, OnModuleInit {
     const pair = keyring.addFromUri(secret.privateKey)
 
     const account = (await this.api.query.system.account(pair.address)) as unknown as AccountInfo
-    const {
-      data: { free },
-    } = account
-    return free.toString()
+
+    return formatBalance(this.api, account)
   }
 }
