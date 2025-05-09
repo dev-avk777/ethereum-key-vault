@@ -134,19 +134,4 @@ export class EthereumController {
     const balance = await this.ethereumService.getBalance(address)
     return { address, balance: `${balance} OPAL` }
   }
-
-  /**
-   * GET /ethereum/substrate?email=
-   * Возвращает Substrate-адрес по email пользователя
-   */
-  @ApiOperation({ summary: 'Get Substrate address for a user by email' })
-  @ApiQuery({ name: 'email', required: true, description: 'User email' })
-  @Get('substrate')
-  async getSubstrateAddress(@Query('email') email: string): Promise<{ substrateAddress: string }> {
-    if (!email) {
-      throw new NotFoundException('Email is required')
-    }
-    const substrateAddress = await this.usersService.getSubstrateAddress(email)
-    return { substrateAddress }
-  }
 }
