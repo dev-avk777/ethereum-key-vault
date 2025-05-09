@@ -1,22 +1,12 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Query,
-  UnauthorizedException,
-  Res,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common'
-import { Response } from 'express'
-import { UsersService } from '../services/users.service'
-import { AuthService } from '../services/auth.service'
-import { LoginUserDto } from '../dto/login-user.dto'
-import { CreateUserDto } from '../dto/create-user.dto'
-import { JwtService } from '@nestjs/jwt'
+import { Body, Controller, Post, Query, Res, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { JwtService } from '@nestjs/jwt'
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
+import { Response } from 'express'
+import { CreateUserDto } from '../dto/create-user.dto'
+import { LoginUserDto } from '../dto/login-user.dto'
+import { AuthService } from '../services/auth.service'
+import { UsersService } from '../services/users.service'
 
 @ApiTags('users')
 @Controller('users')
@@ -54,18 +44,38 @@ export class UsersController {
     return { id: user.id, email: user.email, displayName: user.displayName }
   }
 
+  /**
+   * Registers a new user on a given chain.
+   * @param createUserDto - The data transfer object containing user information for registration.
+   * @param chain - The blockchain type to generate the wallet on. Defaults to 'substrate'.
+   * @param res - The response object to set cookies.
+   * @returns The registered user's id, email, and public key.
+   * @throws InternalServerErrorException if registration fails.
+   */
+  @ApiOperation({ summary: 'Register a new user on a given chain' })
+  @ApiQuery({
+    name: 'chain',
+    enum: ['ethereum', 'substrate'],
+    required: false,
+    description: 'Which chain to generate the wallet on (defaults to substrate)',
+  })
   @Post('register')
-  async register(@Body() createUserDto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
-    const user = await this.usersService.registerUser(createUserDto)
+  async register(
+    @Body() createUserDto: CreateUserDto,
+    @Query('chain') chain: 'ethereum' | 'substrate' = 'substrate',
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const { id, email, publicKey, substratePublicKey } = await this.usersService.registerUser(
+      createUserDto,
+      chain
+    )
 
-    if (!user) {
-      throw new InternalServerErrorException('Registration failed')
-    }
+    const unifiedKey = substratePublicKey ?? publicKey
 
     const token = this.jwtService.sign({
-      id: user.id,
-      email: user.email,
-      publicKey: user.publicKey,
+      id,
+      email,
+      publicKey: unifiedKey,
     })
 
     const isProd = this.configService.get('NODE_ENV') === 'production'
@@ -76,20 +86,6 @@ export class UsersController {
       maxAge: 24 * 60 * 60 * 1000,
     })
 
-    return { id: user.id, email: user.email, publicKey: user.publicKey }
-  }
-
-  /**
-   * Gets the Substrate address for a user based on their email
-   */
-  @ApiOperation({ summary: 'Get Substrate address for a user' })
-  @ApiQuery({ name: 'email', required: true, description: 'User email' })
-  @Get('substrate-address')
-  async getSubstrateAddress(@Query('email') email: string) {
-    if (!email) {
-      throw new NotFoundException('Email is required')
-    }
-
-    return { substrateAddress: await this.usersService.getSubstrateAddress(email) }
+    return { id, email, publicKey: unifiedKey }
   }
 }

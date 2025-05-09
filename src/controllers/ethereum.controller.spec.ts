@@ -32,22 +32,33 @@ const mockVaultService = {}
 
 describe('EthereumController', () => {
   let controller: EthereumController
-  let ethereumService: EthereumService
-  let usersService: UsersService
+  let ethereumService: jest.Mocked<EthereumService>
+  let usersService: jest.Mocked<UsersService>
 
   beforeEach(async () => {
     jest.clearAllMocks()
+
+    ethereumService = {
+      sendNative: jest.fn(),
+      getBalance: jest.fn(),
+    } as unknown as jest.Mocked<EthereumService>
+
+    usersService = {
+      findById: jest.fn(),
+      getSubstrateAddress: jest.fn(),
+      sendTokensFromUser: jest.fn(),
+    } as unknown as jest.Mocked<UsersService>
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EthereumController],
       providers: [
         {
           provide: EthereumService,
-          useValue: mockEthereumService,
+          useValue: ethereumService,
         },
         {
           provide: UsersService,
-          useValue: mockUsersService,
+          useValue: usersService,
         },
         {
           provide: VaultService,
@@ -65,8 +76,6 @@ describe('EthereumController', () => {
     }).compile()
 
     controller = module.get<EthereumController>(EthereumController)
-    ethereumService = module.get<EthereumService>(EthereumService)
-    usersService = module.get<UsersService>(UsersService)
   })
 
   it('should be defined', () => {
@@ -203,24 +212,16 @@ describe('EthereumController', () => {
 
   describe('transferByEmail', () => {
     it('should call UsersService.sendTokensFromUser', async () => {
+      const dto = { email: 'a@b.com', toAddress: '0x123', amount: '1' }
+
       mockUsersService.sendTokensFromUser.mockResolvedValue({
         hash: '0xabcdef1234567890',
       })
 
-      const result = await controller.transferByEmail({
-        email: 'user@example.com',
-        toAddress: '0x0987654321098765432109876543210987654321',
-        amount: '1.0',
-        isOAuth: true,
-      })
+      const result = await controller.transferByEmail(dto)
 
       expect(result).toEqual({ hash: '0xabcdef1234567890' })
-      expect(usersService.sendTokensFromUser).toHaveBeenCalledWith(
-        'user@example.com',
-        '0x0987654321098765432109876543210987654321',
-        '1.0',
-        true
-      )
+      expect(mockUsersService.sendTokensFromUser).toHaveBeenCalledWith('a@b.com', '0x123', '1')
     })
   })
 

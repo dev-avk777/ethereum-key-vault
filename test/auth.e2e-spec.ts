@@ -24,6 +24,7 @@ describe('Auth (e2e)', () => {
     googleId: 'google123',
     displayName: 'Test User',
     publicKey: '0x123abc',
+    substratePublicKey: null,
   }
 
   /**

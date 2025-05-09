@@ -13,7 +13,13 @@ import {
   ValidationPipe,
 } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+  ApiExcludeController,
+} from '@nestjs/swagger'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { GetUser } from '../decorators/get-user.decorator'
@@ -26,6 +32,7 @@ import { UsersService } from '../services/users.service'
 /**
  * Controller для работы с Ethereum/Opal транзакциями и балансами
  */
+@ApiExcludeController()
 @ApiTags('ethereum')
 @Controller('ethereum')
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
@@ -92,7 +99,7 @@ export class EthereumController {
   @ApiOperation({ summary: 'Transfer tokens using email (for external services)' })
   @Post('transfer-by-email')
   async transferByEmail(@Body() dto: EmailTransferDto) {
-    return this.usersService.sendTokensFromUser(dto.email, dto.toAddress, dto.amount, dto.isOAuth)
+    return this.usersService.sendTokensFromUser(dto.email, dto.toAddress, dto.amount)
   }
 
   /**
@@ -126,20 +133,5 @@ export class EthereumController {
 
     const balance = await this.ethereumService.getBalance(address)
     return { address, balance: `${balance} OPAL` }
-  }
-
-  /**
-   * GET /ethereum/substrate?email=
-   * Возвращает Substrate-адрес по email пользователя
-   */
-  @ApiOperation({ summary: 'Get Substrate address for a user by email' })
-  @ApiQuery({ name: 'email', required: true, description: 'User email' })
-  @Get('substrate')
-  async getSubstrateAddress(@Query('email') email: string): Promise<{ substrateAddress: string }> {
-    if (!email) {
-      throw new NotFoundException('Email is required')
-    }
-    const substrateAddress = await this.usersService.getSubstrateAddress(email)
-    return { substrateAddress }
   }
 }

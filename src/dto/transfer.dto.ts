@@ -1,35 +1,29 @@
-import {
-  IsEthereumAddress,
-  IsString,
-  Matches,
-  IsEmail,
-  IsBoolean,
-  IsOptional,
-} from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
+import { IsEmail, IsString } from 'class-validator'
 
 /**
  * DTO for token transfer operations
  */
 export class TransferDto {
   @ApiProperty({
-    description: 'Destination Ethereum address',
-    example: '0x1234567890123456789012345678901234567890',
+    description: 'Destination SS58 address',
+    example: '5F3sa2TJcP...',
   })
-  @IsEthereumAddress()
+  @IsString()
   toAddress: string
 
   @ApiProperty({
-    description: 'Amount to transfer (in ETH/token units)',
-    example: '0.01',
+    description: 'Amount to transfer (in Planck units)',
+    example: '1000000000000',
   })
   @IsString()
-  @Matches(/^\d+(\.\d+)?$/, { message: 'Amount must be a valid decimal number' })
   amount: string
 }
 
 /**
  * DTO for email-based token transfer operations (for external services)
+ * Used exclusively in the EthereumController
+ * for non-guaranteed email transfers.
  */
 export class EmailTransferDto extends TransferDto {
   @ApiProperty({
@@ -38,12 +32,4 @@ export class EmailTransferDto extends TransferDto {
   })
   @IsEmail()
   email: string
-
-  @ApiProperty({
-    description: 'Whether the user authenticated via OAuth',
-    example: false,
-  })
-  @IsBoolean()
-  @IsOptional()
-  isOAuth: boolean = false
 }
