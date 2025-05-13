@@ -49,16 +49,26 @@ export class RealVaultService implements IVaultService, OnModuleInit {
     }
   }
   async storeSecret(path: string, secret: Record<string, any>) {
-    this.logger.debug(`Storing secret at "${path}"`)
+    this.logger.log(`Storing secret at "${path}"`)
     try {
-      return await this.vaultClient.write(`secret/data/${path}`, { data: secret })
+      const result = await this.vaultClient.write(`secret/data/${path}`, { data: secret })
+      this.logger.log(`Secret stored successfully at "${path}"`)
+      return result
     } catch (error: unknown) {
-      this.logger.error(
-        `Failed to store secret at "${path}": ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
-      throw new Error(
-        `Failed to store secret: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      this.logger.error(`Failed to store secret at "${path}": ${errorMessage}`)
+      if (error instanceof Error && error.stack) {
+        this.logger.error(`Error stack: ${error.stack}`)
+      }
+
+      // Добавим специфическую обработку для 404 ошибок и других статусов
+      if (errorMessage.includes('Status 404')) {
+        this.logger.error(
+          `Vault returned 404 for path "${path}". This might indicate a path issue.`
+        )
+      }
+
+      throw new Error(`Failed to store secret: ${errorMessage}`)
     }
   }
 

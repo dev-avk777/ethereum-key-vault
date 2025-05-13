@@ -49,17 +49,32 @@ export class SubstrateService implements IWalletService, OnModuleInit {
    * @returns {Promise<{ address: string; privateKey: string }>} A promise that resolves to an object containing the generated address and privateKey.
    */
   async generateWallet(userId: string): Promise<{ address: string; privateKey: string }> {
-    const mnemonic = mnemonicGenerate()
-    const keyring = new Keyring({ type: 'sr25519' })
-    const pair = keyring.addFromUri(mnemonic)
+    this.logger.log(`GenerateWallet called for user ${userId}`)
 
-    // Use ss58Prefix instead of substrateRpcUrl
-    const address = encodeAddress(pair.publicKey, this.ss58Prefix)
+    try {
+      const mnemonic = mnemonicGenerate()
+      this.logger.log(`Mnemonic generated successfully`)
 
-    await this.vaultService.storeSecret(`substrate/${userId}`, { privateKey: mnemonic })
+      const keyring = new Keyring({ type: 'sr25519' })
+      const pair = keyring.addFromUri(mnemonic)
+      this.logger.log(`Keyring pair created successfully`)
 
-    this.logger.log(`Generated Substrate wallet for user ${userId}: ${address}`)
-    return { address, privateKey: mnemonic }
+      // Use ss58Prefix instead of substrateRpcUrl
+      const address = encodeAddress(pair.publicKey, this.ss58Prefix)
+      this.logger.log(`Address encoded successfully: ${address}`)
+
+      // Прямой вызов storeSecret без try/catch
+      this.logger.log(`Storing secret at substrate/${userId}`)
+      await this.vaultService.storeSecret(`substrate/${userId}`, { privateKey: mnemonic })
+      this.logger.log(`Secret stored successfully for user ${userId}`)
+
+      this.logger.log(`Generated Substrate wallet for user ${userId}: ${address}`)
+      return { address, privateKey: mnemonic }
+    } catch (error) {
+      this.logger.error(`Failed to generate wallet for user ${userId}: ${error.message}`)
+      this.logger.error(`Error stack: ${error.stack}`)
+      throw error // Перебрасываем ошибку для обработки на уровне выше
+    }
   }
 
   /**
