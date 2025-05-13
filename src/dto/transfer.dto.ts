@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger'
-import { IsEmail, IsString } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { IsEmail, IsString, IsOptional } from 'class-validator'
 
 /**
  * DTO for token transfer operations
@@ -13,11 +13,19 @@ export class TransferDto {
   toAddress: string
 
   @ApiProperty({
-    description: 'Amount to transfer (in Planck units)',
-    example: '1000000000000',
+    description: 'Amount to transfer (in human units)',
+    example: '100',
   })
   @IsString()
   amount: string
+
+  @ApiPropertyOptional({
+    description: 'Asset ID for ORML tokens pallet (fallback to SUBSTRATE_TOKEN_ID)',
+    example: 'OPAL',
+  })
+  @IsOptional()
+  @IsString()
+  assetId?: string
 }
 
 /**

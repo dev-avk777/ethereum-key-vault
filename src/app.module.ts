@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { databaseConfig } from './config/database.config'
 import { VaultConfigModule } from './config/vault.config'
+import { substrateConfig } from './config/substrate.config'
 import { AuthModule } from './modules/auth.module'
 import { SubstrateModule } from './modules/substrate.module'
 import { UsersModule } from './modules/users.module'
@@ -15,6 +16,7 @@ import { EthereumModule } from './modules/ethereum.module'
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env', // Explicitly specify path to .env file
+      load: [substrateConfig], // Load Substrate configuration
     }),
     VaultConfigModule,
     // Connect to database with configuration from database.config.ts

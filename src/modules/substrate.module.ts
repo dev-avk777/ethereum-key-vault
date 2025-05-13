@@ -4,9 +4,10 @@ import { VaultConfigModule } from '../config/vault.config'
 import { VaultServiceProvider, VaultService } from '../services/vault.service'
 import { SubstrateService } from '../services/substrate.service'
 import { SubstrateController } from '../controllers/substrate.controller'
+import { substrateConfig } from '../config/substrate.config'
 
 @Module({
-  imports: [ConfigModule, VaultConfigModule],
+  imports: [ConfigModule.forFeature(substrateConfig), VaultConfigModule],
   controllers: [SubstrateController],
   providers: [
     VaultServiceProvider, // Registers the implementation of VaultServiceImpl
