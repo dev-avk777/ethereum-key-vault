@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
-import { encodeAddress } from '@polkadot/util-crypto'
 import * as argon2 from 'argon2'
 import { Repository } from 'typeorm'
 import { CreateUserDto } from '../dto/create-user.dto'
@@ -84,43 +83,61 @@ export class UsersService {
     publicKey: string | null
     substratePublicKey: string | null
   }> {
-    // 1) Проверка и хеширование
-    const existing = await this.userRepository.findOne({ where: { email: dto.email } })
-    if (existing) {
-      throw new ConflictException(`User with email ${dto.email} already exists`)
-    }
-    const hashed = await argon2.hash(dto.password)
+    const queryRunner = this.userRepository.manager.connection.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
 
-    // 2) Создаём и сразу сохраняем, чтобы получить id
-    const user = this.userRepository.create({ email: dto.email, password: hashed })
-    await this.userRepository.save(user) // Сохраняем, чтобы получить user.id
+    try {
+      // Check existing user
+      const existing = await queryRunner.manager.findOne(User, { where: { email: dto.email } })
+      if (existing) {
+        throw new ConflictException(`User with email ${dto.email} already exists`)
+      }
 
-    // 3) Генерируем ключи
-    let ethAddr: string | null = null
-    let subAddr: string | null = null
+      // Hash password and create user
+      const hashed = await argon2.hash(dto.password)
+      const user = queryRunner.manager.create(User, { email: dto.email, password: hashed })
+      await queryRunner.manager.save(user)
 
-    if (chain === 'substrate') {
-      const { address, privateKey } = await this.substrateService.generateWallet(user.id)
-      subAddr = address
-      user.substratePublicKey = address
-      // Сохраняем приватный ключ в Vault
-      await this.vaultService.storeSecret(`substrate/${user.id}`, { privateKey })
-    } else {
-      const { address, privateKey } = await this.ethereumService.generateWallet(dto.email) // Используем email
-      ethAddr = address
-      user.publicKey = address
-      // Сохраняем приватный ключ в Vault
-      await this.vaultService.storeSecret(`ethereum/${user.id}`, { privateKey })
-    }
+      let ethAddr: string | null = null
+      let subAddr: string | null = null
 
-    // 4) Обновляем запись одним save'ом
-    await this.userRepository.save(user)
+      try {
+        if (chain === 'substrate') {
+          const { address, privateKey } = await this.substrateService.generateWallet(user.id)
+          subAddr = address
+          user.substratePublicKey = address
+          await this.vaultService.storeSecret(`substrate/${user.id}`, { privateKey })
+        } else {
+          const { address, privateKey } = await this.ethereumService.generateWallet(user.id)
+          ethAddr = address
+          user.publicKey = address
+          await this.vaultService.storeSecret(`ethereum/${user.id}`, { privateKey })
+        }
 
-    return {
-      id: user.id,
-      email: user.email,
-      publicKey: ethAddr,
-      substratePublicKey: subAddr,
+        // Update user with wallet info
+        await queryRunner.manager.save(user)
+        await queryRunner.commitTransaction()
+
+        return {
+          id: user.id,
+          email: user.email,
+          publicKey: ethAddr,
+          substratePublicKey: subAddr,
+        }
+      } catch (_error) {
+        // If Vault storage fails, rollback DB changes
+        await queryRunner.rollbackTransaction()
+        throw new InternalServerErrorException('Failed to setup user wallet')
+      }
+    } catch (error) {
+      await queryRunner.rollbackTransaction()
+      if (error instanceof ConflictException) {
+        throw error
+      }
+      throw new InternalServerErrorException('Failed to create user')
+    } finally {
+      await queryRunner.release()
     }
   }
 
@@ -154,20 +171,6 @@ export class UsersService {
       return user
     }
     return undefined
-  }
-
-  /**
-   * Converts an Ethereum address to a Substrate-compatible address.
-   * @param ethAddress - Ethereum address (0x...)
-   * @returns Substrate-formatted address
-   * @throws BadRequestException if address is invalid
-   */
-  async convertToSubstrateAddress(ethAddress: string): Promise<string> {
-    if (!ethAddress || !ethAddress.startsWith('0x')) {
-      throw new BadRequestException('Invalid Ethereum address')
-    }
-    const ethAddressBytes = Buffer.from(ethAddress.slice(2), 'hex')
-    return encodeAddress(ethAddressBytes, 42)
   }
 
   /**
@@ -215,156 +218,98 @@ export class UsersService {
     userData: GoogleUserData,
     chain: 'ethereum' | 'substrate' = 'substrate'
   ): Promise<AuthenticatedUser> {
-    let user =
-      (await this.userRepository.findOne({ where: { googleId: userData.googleId } })) ??
-      (await this.findByEmail(userData.email))
+    const queryRunner = this.userRepository.manager.connection.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
 
-    let isNewUser = false
-    if (!user) {
-      this.logger.log(`Creating new OAuth user ${userData.email}`)
-      user = this.userRepository.create({
-        email: userData.email,
-        displayName: userData.displayName,
-        googleId: userData.googleId,
-      })
-      await this.userRepository.save(user)
-      isNewUser = true
-    } else if (!user.googleId) {
-      // Связываем существующую учетную запись с Google
-      this.logger.log(
-        `Linking existing account ${userData.email} with Google ID ${userData.googleId}`
-      )
-      user.googleId = userData.googleId
-      user.displayName = user.displayName || userData.displayName
-      await this.userRepository.save(user)
-    }
+    try {
+      let user =
+        (await queryRunner.manager.findOne(User, { where: { googleId: userData.googleId } })) ??
+        (await queryRunner.manager.findOne(User, { where: { email: userData.email } }))
 
-    // Проверяем, нужно ли генерировать кошелек
-    const needSubstrateWallet = chain === 'substrate' && !user.substratePublicKey
-    const needEthereumWallet = chain === 'ethereum' && !user.publicKey
-
-    // Генерируем кошелек только для новых пользователей или если ключ отсутствует
-    if (isNewUser || needSubstrateWallet || needEthereumWallet) {
-      try {
+      let isNewUser = false
+      if (!user) {
+        this.logger.log(`Creating new OAuth user ${userData.email}`)
+        user = queryRunner.manager.create(User, {
+          email: userData.email,
+          displayName: userData.displayName,
+          googleId: userData.googleId,
+        })
+        await queryRunner.manager.save(user)
+        isNewUser = true
+      } else if (!user.googleId) {
         this.logger.log(
-          `Checking/Generating ${chain} wallet for Google user ${user.email} (ID: ${user.id})`
+          `Linking existing account ${userData.email} with Google ID ${userData.googleId}`
         )
+        user.googleId = userData.googleId
+        user.displayName = user.displayName || userData.displayName
+        await queryRunner.manager.save(user)
+      }
 
-        if (chain === 'substrate') {
-          // Проверяем существование секрета в Vault
-          try {
-            this.logger.log(
-              `Attempting to get secret from Vault at substrate/${user.id} for user ${user.email}`
-            )
+      // Check if wallet generation is needed
+      const needSubstrateWallet = chain === 'substrate' && !user.substratePublicKey
+      const needEthereumWallet = chain === 'ethereum' && !user.publicKey
+
+      if (isNewUser || needSubstrateWallet || needEthereumWallet) {
+        try {
+          this.logger.log(`Generating ${chain} wallet for user ${user.email} (ID: ${user.id})`)
+
+          if (chain === 'substrate') {
             const existingSecret = await this.vaultService.getSecret(`substrate/${user.id}`)
-            this.logger.log(
-              `Secret check result: ${existingSecret ? 'Secret found' : 'No secret found'}`
-            )
 
             if (!existingSecret || !existingSecret.privateKey) {
-              this.logger.log(`No substrate key in Vault for ${user.email}, generating...`)
-
-              // Добавим прямое вызывание SubstrateService без try/catch
-              this.logger.log(`Calling substrateService.generateWallet for ${user.id}`)
-              const walletResult = await this.substrateService.generateWallet(user.id)
-
-              this.logger.log(
-                `Generated wallet result: ${JSON.stringify({
-                  address: walletResult.address,
-                  hasPrivateKey: !!walletResult.privateKey,
-                })}`
-              )
-
-              // Добавим явное обновление user.substratePublicKey
-              user.substratePublicKey = walletResult.address
-              this.logger.log(`Setting user.substratePublicKey to ${walletResult.address}`)
-
-              // Вызовем storeSecret напрямую без try/catch
-              this.logger.log(`Calling vaultService.storeSecret at substrate/${user.id}`)
-              const storeResult = await this.vaultService.storeSecret(`substrate/${user.id}`, {
-                privateKey: walletResult.privateKey,
-              })
-              this.logger.log(`Store result: ${JSON.stringify(storeResult)}`)
-
-              // Сохраним пользователя
-              await this.userRepository.save(user)
-              this.logger.log(`User saved with substrate public key: ${user.substratePublicKey}`)
+              this.logger.log(`Generating new substrate wallet for ${user.email}`)
+              const { address, privateKey } = await this.substrateService.generateWallet(user.id)
+              user.substratePublicKey = address
+              await this.vaultService.storeSecret(`substrate/${user.id}`, { privateKey })
+              await queryRunner.manager.save(user)
+              this.logger.log(`Generated substrate wallet with address: ${address}`)
             } else {
-              this.logger.log(`Found existing substrate key in Vault for ${user.email}`)
-              // Проверим, установлен ли public key в БД
+              this.logger.log(`Found existing substrate wallet for ${user.email}`)
               if (!user.substratePublicKey) {
-                this.logger.log(
-                  `User has secret in Vault but no substratePublicKey in DB. Regenerating wallet...`
-                )
-                // Регенерируем wallet для получения public key
                 const { address } = await this.substrateService.generateWallet(user.id)
                 user.substratePublicKey = address
-                await this.userRepository.save(user)
-                this.logger.log(`Updated user with substrate public key: ${address}`)
+                await queryRunner.manager.save(user)
+                this.logger.log(`Updated substrate address: ${address}`)
               }
             }
-          } catch (error) {
-            this.logger.error(
-              `CRITICAL ERROR handling vault for user ${user.email}: ${error.message}`
-            )
-            this.logger.error(`Error stack: ${error.stack}`)
-
-            // Попробуем все-таки сгенерировать ключ
-            try {
-              this.logger.log(`Attempting emergency wallet generation for ${user.id}`)
-              const { address, privateKey } = await this.substrateService.generateWallet(user.id)
-              this.logger.log(`Emergency wallet generated with address: ${address}`)
-
-              user.substratePublicKey = address
-              await this.userRepository.save(user)
-
-              this.logger.log(`Attempting emergency secret storage at substrate/${user.id}`)
-              await this.vaultService.storeSecret(`substrate/${user.id}`, { privateKey })
-              this.logger.log(`Emergency wallet and secret processed successfully`)
-            } catch (emergencyError) {
-              this.logger.error(
-                `CRITICAL: Emergency wallet generation failed: ${emergencyError.message}`
-              )
-              // В этом случае мы не можем сделать ничего больше, кроме как вернуть пользователя без ключа
-            }
-          }
-        } else {
-          // Ethereum логика
-          try {
+          } else {
             const existingSecret = await this.vaultService.getSecret(`ethereum/${user.id}`)
             if (!existingSecret || !existingSecret.privateKey) {
-              this.logger.log(`No ethereum key in Vault for ${user.email}, generating...`)
+              this.logger.log(`Generating new ethereum wallet for ${user.email}`)
               const { address, privateKey } = await this.ethereumService.generateWallet(user.id)
               user.publicKey = address
               await this.vaultService.storeSecret(`ethereum/${user.id}`, { privateKey })
-              await this.userRepository.save(user)
-              this.logger.log(`Generated ethereum key for ${user.email}: ${address}`)
+              await queryRunner.manager.save(user)
+              this.logger.log(`Generated ethereum wallet with address: ${address}`)
             } else {
-              this.logger.log(`Found existing ethereum key in Vault for ${user.email}`)
+              this.logger.log(`Found existing ethereum wallet for ${user.email}`)
             }
-          } catch (error) {
-            this.logger.error(`Failed to check/retrieve ethereum key from Vault: ${error.message}`)
-            // Генерируем новый ключ если произошла ошибка
-            const { address, privateKey } = await this.ethereumService.generateWallet(user.id)
-            user.publicKey = address
-            await this.vaultService.storeSecret(`ethereum/${user.id}`, { privateKey })
-            await this.userRepository.save(user)
-            this.logger.log(`Generated new ethereum key after error: ${address}`)
           }
-        }
-      } catch (error) {
-        this.logger.error(`Failed to generate wallet for Google user ${user.email}`, error)
-      }
-    }
 
-    // Now unifiedKey is either substratePublicKey or publicKey
-    const unifiedKey = user.substratePublicKey ?? user.publicKey
-    return {
-      id: user.id,
-      email: user.email,
-      googleId: user.googleId!,
-      displayName: user.displayName!,
-      publicKey: unifiedKey!,
+          await queryRunner.commitTransaction()
+        } catch (_error) {
+          await queryRunner.rollbackTransaction()
+          this.logger.error('Failed to generate wallet')
+          throw new InternalServerErrorException('Failed to setup user wallet')
+        }
+      } else {
+        await queryRunner.commitTransaction()
+      }
+
+      const unifiedKey = user.substratePublicKey ?? user.publicKey
+      return {
+        id: user.id,
+        email: user.email,
+        googleId: user.googleId!,
+        displayName: user.displayName!,
+        publicKey: unifiedKey!,
+      }
+    } catch (_error) {
+      await queryRunner.rollbackTransaction()
+      throw new InternalServerErrorException('Failed to process Google authentication')
+    } finally {
+      await queryRunner.release()
     }
   }
 }

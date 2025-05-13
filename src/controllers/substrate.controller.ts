@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Logger, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Body, Logger, UseGuards, Header } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { SubstrateService } from '../services/substrate.service'
 import { TransferDto } from '../dto/transfer.dto'
@@ -16,6 +16,7 @@ export class SubstrateController {
 
   @ApiOperation({ summary: 'Get Substrate balance of current user' })
   @Get('balance')
+  @Header('Cache-Control', 'no-store')
   async balance(@GetUser('id') userId: string) {
     const balance = await this.substrateService.getBalance(userId)
     this.logger.log(`Balance for ${userId}: ${balance}`)

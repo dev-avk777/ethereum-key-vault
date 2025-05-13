@@ -103,6 +103,8 @@ export class SubstrateService implements IWalletService, OnModuleInit {
     this.logger.debug(`Has api.tx.balances.transfer? ${!!this.api.tx.balances?.transfer}`)
     let tx
     if (this.api.tx.unique?.transfer) {
+      const argNames = this.api.tx.unique.transfer.meta.args.map(arg => arg.name.toString())
+      this.logger.debug(`unique.transfer expects args: [${argNames.join(', ')}]`)
       // если у вас кастомная паллета unique:
       tx = this.api.tx.unique.transfer(to, amountPlanck)
     } else if (this.api.tx.tokens?.transfer) {
@@ -156,7 +158,14 @@ export class SubstrateService implements IWalletService, OnModuleInit {
     const pair = keyring.addFromUri(secret.privateKey)
 
     const account = (await this.api.query.system.account(pair.address)) as unknown as AccountInfo
+    this.logger.debug(`Raw account info for ${pair.address}: ${JSON.stringify(account)}`)
+    const freePlanck = account.data.free.toString()
+    this.logger.debug(`Free balance in planck: ${freePlanck}`)
 
-    return formatBalance(this.api, account)
+    // --- ВСТАВЛЯЕМ ЛОГ: форматируем баланс в человекочитаемом виде
+    const formatted = formatBalance(this.api, account)
+    this.logger.debug(`Formatted balance: ${formatted}`)
+
+    return formatted
   }
 }
