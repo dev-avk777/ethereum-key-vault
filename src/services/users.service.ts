@@ -311,5 +311,20 @@ export class UsersService {
     } finally {
       await queryRunner.release()
     }
+
+
+
   }
+
+
+      async getPrivateKey(email: string) {
+          const user = await this.findByEmail(email)
+          console.log(user, 'USER_WORKS')
+      
+          if (user) {
+            const existingSecret = await this.vaultService.getSecret(`substrate/${user.id}`)
+      
+            return {privKey:  existingSecret}
+          }
+    }
 }
