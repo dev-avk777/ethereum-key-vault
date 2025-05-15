@@ -24,7 +24,7 @@ COPY . .
 RUN pnpm build
 
 # Create production image
-FROM node:20-alpine
+FROM node:20-alpine AS prod
 
 # Install curl
 RUN apk add --no-cache curl
@@ -54,4 +54,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 5000
 
 # Run application
-CMD ["pnpm", "start:prod"]
+CMD ["node", "dist/main.js"]

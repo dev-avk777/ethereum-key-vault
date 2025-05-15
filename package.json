@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
     "dev": "docker-compose up -d && wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:8200 && concurrently \"pnpm run backend:watch\" \"pnpm run frontend:dev\"",
     "backend:watch": "ts-node-dev --respawn --transpile-only src/main.ts",
     "frontend:dev": "cd ../oauth-frontend && pnpm run dev",
