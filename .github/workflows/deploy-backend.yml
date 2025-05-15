@@ -98,12 +98,13 @@ jobs:
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ secrets.SERVER_IP }}
+          host: 104.168.54.155
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           debug: true
           script: |
+            console.log('→ INPUT_HOST:', process.env.INPUT_HOST)
             set -e
             cd ~/backend
 
