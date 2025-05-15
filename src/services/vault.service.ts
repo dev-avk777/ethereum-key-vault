@@ -1,88 +1,67 @@
-import { Injectable, Logger, Inject, Scope, OnModuleInit } from '@nestjs/common'
+import { Injectable, Logger, Inject, Scope } from '@nestjs/common'
 import { Wallet } from 'ethers'
 import * as vault from 'node-vault'
 import { VaultOptions } from 'node-vault'
 
 export interface IVaultService {
-  storeSecret(path: string, secret: Record<string, any>): Promise<any>
+  storeSecret(path: string, secret: Record<string, any>): Promise<void>
   getSecret(path: string): Promise<any>
 }
 
 @Injectable({ scope: Scope.DEFAULT })
-export class RealVaultService implements IVaultService, OnModuleInit {
+export class RealVaultService implements IVaultService {
   private readonly logger = new Logger(RealVaultService.name)
-  private vaultClient: vault.client
+  private client: ReturnType<typeof vault>
+  private readonly mountPoint = 'secret' // точка монтирования в Vault
 
-  constructor(@Inject('VAULT_CONFIG') private readonly vaultConfig: VaultOptions) {
-    this.vaultClient = vault(vaultConfig)
-    this.logger.log(`Initialized Vault client with endpoint: ${vaultConfig.endpoint}`)
+  constructor(@Inject('VAULT_CONFIG') private readonly cfg: VaultOptions) {
+    this.client = vault(cfg)
+    this.logger.log(`Vault client инициализирован, точка монтирования: ${this.mountPoint}/`)
   }
+
   async onModuleInit() {
+    // Проверим, что секретная шина именно v2
     try {
-      const mounts = await this.vaultClient.read('sys/mounts/secret')
+      const mounts = await this.client.read(`sys/mounts/${this.mountPoint}`)
       const opts = (mounts.data.options || {}) as Record<string, any>
-
-      if (opts.version !== '2' && opts.version !== 2) {
-        this.logger.log('Remounting secret/ to KV v2')
-        await this.vaultClient.request({
+      if (opts.version !== '2') {
+        this.logger.log(`Перемонтирую ${this.mountPoint}/ в KV v2`)
+        await this.client.request({
           method: 'POST',
-          path: 'sys/mounts/secret',
+          path: `sys/mounts/${this.mountPoint}`,
           json: { type: 'kv', options: { version: 2 } },
         })
       } else {
-        this.logger.log('secret/ already KV v2')
+        this.logger.log(`${this.mountPoint}/ уже KV v2`)
       }
+    } catch (e: unknown) {
+      // если не монтировано вовсе
+      this.logger.error(e)
+      this.logger.log(`Монтирование ${this.mountPoint}/ не найдено, подключаю KV v2`)
+      await this.client.request({
+        method: 'POST',
+        path: `sys/mounts/${this.mountPoint}`,
+        json: { type: 'kv', options: { version: 2 } },
+      })
+    }
+  }
+
+  async storeSecret(path: string, secret: Record<string, any>): Promise<void> {
+    this.logger.log(`Сохраняю секрет "${path}"`)
+    await this.client.write(`${this.mountPoint}/data/${path}`, { data: secret })
+    this.logger.log(`Секрет "${path}" сохранён`)
+  }
+
+  async getSecret(path: string): Promise<any> {
+    try {
+      const resp = await this.client.read(`${this.mountPoint}/data/${path}`)
+      return resp.data.data
     } catch (e: any) {
-      // если mount не найден или другая ошибка
-      if (e.response?.statusCode === 307) {
-        // редирект означает «уже смонтировано» — просто логируем
-        this.logger.log('secret/ mount already exists; skipping')
-      } else {
-        this.logger.log('Mounting secret/ to KV v2')
-        await this.vaultClient.request({
-          method: 'POST',
-          path: 'sys/mounts/secret',
-          json: { type: 'kv', options: { version: 2 } },
-        })
-      }
-    }
-  }
-  async storeSecret(path: string, secret: Record<string, any>) {
-    this.logger.log(`Storing secret at "${path}"`)
-    try {
-      const result = await this.vaultClient.write(`secret/data/${path}`, { data: secret })
-      this.logger.log(`Secret stored successfully at "${path}"`)
-      return result
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      this.logger.error(`Failed to store secret at "${path}": ${errorMessage}`)
-      if (error instanceof Error && error.stack) {
-        this.logger.error(`Error stack: ${error.stack}`)
-      }
-
-      // Добавим специфическую обработку для 404 ошибок и других статусов
-      if (errorMessage.includes('Status 404')) {
-        this.logger.error(
-          `Vault returned 404 for path "${path}". This might indicate a path issue.`
-        )
-      }
-
-      throw new Error(`Failed to store secret: ${errorMessage}`)
-    }
-  }
-
-  async getSecret(path: string) {
-    this.logger.debug(`Retrieving secret at "${path}"`)
-    try {
-      const result = await this.vaultClient.read(`secret/data/${path}`)
-      return result?.data?.data || null
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Unknown error'
-      this.logger.error(`Failed to retrieve secret at "${path}": ${msg}`)
-      if (msg.includes('Key not found')) {
+      if (e.response?.statusCode === 404) {
+        this.logger.warn(`Секрет "${path}" не найден`)
         return null
       }
-      throw new Error(`Failed to get secret: ${msg}`)
+      throw e
     }
   }
 }
@@ -105,15 +84,14 @@ export class MemoryVaultService implements IVaultService {
     }
   }
 
-  async storeSecret(path: string, secret: Record<string, any>) {
+  async storeSecret(path: string, secret: Record<string, any>): Promise<void> {
     if (process.env.NODE_ENV !== 'production') {
       this.logger.debug(`[Vault] Storing secret at "${path}": ${JSON.stringify(secret)}`)
     }
     this.memoryStore[path] = secret
-    return { success: true }
   }
 
-  async getSecret(path: string) {
+  async getSecret(path: string): Promise<any> {
     if (process.env.NODE_ENV !== 'production') {
       this.logger.debug(`[Vault] Retrieving secret at "${path}"`)
     }
@@ -130,11 +108,11 @@ export const VaultServiceProvider = {
 export class VaultService implements IVaultService {
   constructor(@Inject('VaultServiceImpl') private vaultServiceImpl: IVaultService) {}
 
-  async storeSecret(path: string, secret: Record<string, any>) {
+  async storeSecret(path: string, secret: Record<string, any>): Promise<void> {
     return this.vaultServiceImpl.storeSecret(path, secret)
   }
 
-  async getSecret(path: string) {
+  async getSecret(path: string): Promise<any> {
     return this.vaultServiceImpl.getSecret(path)
   }
 

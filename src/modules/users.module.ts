@@ -4,21 +4,20 @@ import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { LocalStrategy } from '../auth/local.strategy'
-import { VaultConfigModule } from '../config/vault.config'
 import { UsersController } from '../controllers/users.controller'
 import { User } from '../entities/user.entity'
 import { AuthService } from '../services/auth.service'
 import { UsersService } from '../services/users.service'
-import { VaultService, VaultServiceProvider } from '../services/vault.service'
 import { EthereumModule } from './ethereum.module'
 import { SubstrateModule } from './substrate.module'
+import { VaultModule } from './vault.module'
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
     PassportModule,
     ConfigModule,
-    VaultConfigModule,
+    VaultModule,
     forwardRef(() => EthereumModule),
     forwardRef(() => SubstrateModule),
     JwtModule.registerAsync({
@@ -31,7 +30,7 @@ import { SubstrateModule } from './substrate.module'
     }),
   ],
   controllers: [UsersController],
-  providers: [VaultServiceProvider, VaultService, UsersService, AuthService, LocalStrategy],
-  exports: [UsersService, AuthService, VaultService],
+  providers: [UsersService, AuthService, LocalStrategy],
+  exports: [UsersService, AuthService],
 })
 export class UsersModule {}

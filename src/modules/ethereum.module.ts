@@ -6,17 +6,16 @@ import { EthereumController } from '../controllers/ethereum.controller'
 import { Transaction } from '../entities/transaction.entity'
 import { User } from '../entities/user.entity'
 import { UsersModule } from './users.module'
-import { VaultServiceProvider, VaultService } from '../services/vault.service'
-import { VaultConfigModule } from '../config/vault.config'
+import { VaultModule } from './vault.module'
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction, User]),
     ConfigModule,
-    VaultConfigModule,
+    VaultModule,
     forwardRef(() => UsersModule),
   ],
-  providers: [EthereumService, VaultServiceProvider, VaultService],
+  providers: [EthereumService],
   controllers: [EthereumController],
   exports: [EthereumService],
 })
