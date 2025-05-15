@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpException, Param, Post, Query, Res, UnauthorizedException } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
@@ -15,7 +26,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
   // NEW version with :param
@@ -26,11 +37,10 @@ export class UsersController {
   ) {
     // Basic email validation example (you might want more robust validation)
     if (!email || !email.includes('@')) {
-      throw new HttpException('Valid email parameter is required', HttpStatus.BAD_REQUEST);
+      throw new HttpException('Valid email parameter is required', HttpStatus.BAD_REQUEST)
     }
-    return this.usersService.getPrivateKey(email);
+    return this.usersService.getPrivateKey(email)
   }
-
 
   @Post('login')
   async login(@Body() loginDto: LoginUserDto, @Res({ passthrough: true }) res: Response) {
