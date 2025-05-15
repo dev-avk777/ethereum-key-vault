@@ -45,7 +45,7 @@ jobs:
         run: |
           pnpm install
           pnpm lint
-         # pnpm test
+          # pnpm test
           pnpm build
 
       - name: Create .env.production
