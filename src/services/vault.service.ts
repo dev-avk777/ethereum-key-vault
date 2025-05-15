@@ -20,32 +20,31 @@ export class RealVaultService implements IVaultService, OnModuleInit {
   async onModuleInit() {
     try {
       const mounts = await this.vaultClient.read('sys/mounts/secret')
-      const opts = mounts.data.options as Record<string, any>
+      const opts = (mounts.data.options || {}) as Record<string, any>
+
       if (opts.version !== '2' && opts.version !== 2) {
         this.logger.log('Remounting secret/ to KV v2')
         await this.vaultClient.request({
           method: 'POST',
           path: 'sys/mounts/secret',
-          json: {
-            type: 'kv',
-            options: { version: 2 },
-          },
+          json: { type: 'kv', options: { version: 2 } },
         })
       } else {
         this.logger.log('secret/ already KV v2')
       }
-    } catch (e: unknown) {
-      console.log(e)
-      // Если не монтировано вообще — просто устраиваем его
-      this.logger.log('Mounting secret/ to KV v2')
-      await this.vaultClient.request({
-        method: 'POST',
-        path: 'sys/mounts/secret',
-        json: {
-          type: 'kv',
-          options: { version: 2 },
-        },
-      })
+    } catch (e: any) {
+      // если mount не найден или другая ошибка
+      if (e.response?.statusCode === 307) {
+        // редирект означает «уже смонтировано» — просто логируем
+        this.logger.log('secret/ mount already exists; skipping')
+      } else {
+        this.logger.log('Mounting secret/ to KV v2')
+        await this.vaultClient.request({
+          method: 'POST',
+          path: 'sys/mounts/secret',
+          json: { type: 'kv', options: { version: 2 } },
+        })
+      }
     }
   }
   async storeSecret(path: string, secret: Record<string, any>) {
