@@ -5,14 +5,14 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Pass NODE_ENV at build stage
-ARG NODE_ENV=development
-ENV NODE_ENV=$NODE_ENV
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
 
 # Copy package.json and pnpm-lock.yaml
 COPY package.json pnpm-lock.yaml ./
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.8.1
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -33,13 +33,13 @@ WORKDIR /app
 
 # Pass NODE_ENV at runtime
 ARG NODE_ENV=production
-ENV NODE_ENV=$NODE_ENV
+ENV NODE_ENV=${NODE_ENV}
 
 # Copy package.json and pnpm-lock.yaml
 COPY package.json pnpm-lock.yaml ./
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.8.1
 
 # Check that pnpm is installed
 RUN pnpm --version || { echo "pnpm not found"; exit 1; }
