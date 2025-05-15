@@ -1,0 +1,130 @@
+name: Deploy Backend to GitLab Registry
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE: registry.gitlab.com/store_images/docker-images/ethereum-key-vault
+      TAG_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install & build
+        run: |
+          pnpm install
+          pnpm lint
+          pnpm test
+          pnpm build
+
+      - name: Create .env.production
+        run: |
+          cat > .env.production <<EOF
+          NODE_ENV=production
+          PORT=5000
+          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+
+          POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+
+          VAULT_ENDPOINT=${{ secrets.VAULT_ENDPOINT }}
+          VAULT_TOKEN=${{ secrets.VAULT_TOKEN }}
+
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}
+          FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+          VITE_AUTH_API_URL=${{ secrets.VITE_AUTH_API_URL }}
+
+          ETHEREUM_RPC_URL=${{ secrets.ETHEREUM_RPC_URL }}
+          SUBSTRATE_RPC_URL=${{ secrets.SUBSTRATE_RPC_URL }}
+          SUBSTRATE_SS58_PREFIX=${{ secrets.SUBSTRATE_SS58_PREFIX }}
+          EOF
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE:latest .
+          docker tag $IMAGE:latest $IMAGE:$TAG_SHA
+
+      - name: Login to GitLab Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.gitlab.com
+          username: ${{ secrets.GITLAB_USER }}
+          password: ${{ secrets.GITLAB_TOKEN }}
+
+      - name: Push images
+        run: |
+          docker push $IMAGE:latest
+          docker push $IMAGE:$TAG_SHA
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || '22' }}
+          script: |
+            # Авторизация в GitLab Registry
+            docker login -u ${{ secrets.GITLAB_USER }} -p ${{ secrets.GITLAB_TOKEN }} registry.gitlab.com
+
+            # Обновляем .env на сервере
+            echo "NODE_ENV=production" > .env.production
+            echo "PORT=5000" >> .env.production
+            echo "LOG_LEVEL=${{ secrets.LOG_LEVEL }}" >> .env.production
+            echo "POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}" >> .env.production
+            echo "POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}" >> .env.production
+            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env.production
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env.production
+            echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env.production
+            echo "VAULT_ENDPOINT=${{ secrets.VAULT_ENDPOINT }}" >> .env.production
+            echo "VAULT_TOKEN=${{ secrets.VAULT_TOKEN }}" >> .env.production
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.production
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env.production
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env.production
+            echo "GOOGLE_CALLBACK_URL=${{ secrets.GOOGLE_CALLBACK_URL }}" >> .env.production
+            echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env.production
+            echo "VITE_AUTH_API_URL=${{ secrets.VITE_AUTH_API_URL }}" >> .env.production
+            echo "ETHEREUM_RPC_URL=${{ secrets.ETHEREUM_RPC_URL }}" >> .env.production
+            echo "SUBSTRATE_RPC_URL=${{ secrets.SUBSTRATE_RPC_URL }}" >> .env.production
+            echo "SUBSTRATE_SS58_PREFIX=${{ secrets.SUBSTRATE_SS58_PREFIX }}" >> .env.production
+
+            # Обновляем и перезапускаем контейнер
+            docker-compose pull app
+            docker-compose up -d app
